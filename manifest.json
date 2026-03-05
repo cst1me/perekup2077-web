@@ -1,0 +1,46 @@
+{
+  "version": 306,
+  "zipUrl": "https://cst1me.github.io/perekup2077-web/game_v306.zip",
+  "sha256": "afb542e4b820bb6703cc20187b85553e72a35a5fc7bcd978acf9e5a9e4de04f7",
+  
+  "versionName": "3.0.6",
+  "build": 306,
+  "releasedAt": "2026-03-05",
+  "title": "v3.0.6 — Визуальные повреждения",
+  "notes": [
+    "✅ Исправлен крестик закрытия карточки",
+    "✅ Машина не слетает в услугах", 
+    "✅ Добавлена валюта ₽ везде",
+    "🚗 25 видов повреждений с SVG визуализацией",
+    "🔧 20+ услуг по категориям",
+    "📅 12 событий дня"
+  ],
+  "files": [
+    "./index.html",
+    "./styles.css",
+    "./js/main.js",
+    "./js/core/utils.js",
+    "./js/core/state.js",
+    "./js/core/data.js",
+    "./js/ui/modal.js",
+    "./js/ui/screens.js",
+    "./js/modes/sixty.js",
+    "./js/modes/sim.js",
+    "./js/update/updater.js",
+    "./sw.js",
+    "./manifest.json",
+    "./icons/icon-192.png",
+    "./icons/icon-512.png"
+  ],
+  "name": "ПЕРЕКУП 2077",
+  "short_name": "ПЕРЕКУП",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0515",
+  "theme_color": "#0d0515",
+  "icons": [
+    {"src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
