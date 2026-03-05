@@ -1,340 +1,260 @@
-// PEREKUP 2077 — Steam-like update system (manifest + SW) — железобетонный UI
+// PEREKUP 2077 — Update System v3.0.5
 import { toast } from '../core/utils.js';
 import { APP_VERSION } from '../core/state.js';
-import { openModal, closeModal } from '../ui/modal.js';
 import { show } from '../ui/screens.js';
 
-const MANIFEST_URL = './manifest.json';
-const LS_BUILD_KEY = 'app_build';
-const LS_VER_KEY   = 'app_version';
-const LS_NOTES_KEY = 'app_notes';
+var MANIFEST_URL = 'https://raw.githubusercontent.com/cst1me/perekup2077-web/main/manifest.json';
+var LS_BUILD_KEY = 'app_build';
+var LS_APK_SKIP = 'apk_update_skip';
+var manifestCache = null;
 
-let manifestCache = null;
-
-function escapeHtml(s){
-  return String(s)
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'","&#039;");
-}
-
-async function fetchManifest(){
-  const res = await fetch(`${MANIFEST_URL}?t=${Date.now()}`, { cache: 'no-store' });
-  if(!res.ok) throw new Error('manifest fetch failed: ' + res.status);
-  return await res.json();
-}
-
-function setPatchStatus(text, type=''){
-  const el = document.getElementById('pn-status');
-  if(!el) return;
-  el.textContent = text;
-  el.style.color =
-    type==='ok' ? 'rgba(0,255,136,0.9)' :
-    type==='warn' ? 'rgba(255,215,0,0.9)' :
-    type==='err' ? 'rgba(255,45,45,0.9)' :
-    'rgba(255,255,255,0.75)';
-}
-
-function ensureUpdateFab(){
-  let fab = document.getElementById('update-fab');
-  if(fab) return fab;
-
-  fab = document.createElement('button');
-  fab.id = 'update-fab';
-  fab.type = 'button';
-  fab.textContent = '⬆ Обновить';
-  fab.style.cssText = [
-    'position:fixed',
-    'right:12px',
-    'bottom:12px',
-    'z-index:9999',
-    'display:none',
-    'padding:10px 12px',
-    'border-radius:14px',
-    'border:1px solid rgba(255,0,255,0.45)',
-    'background:rgba(20,10,30,0.85)',
-    'color:#fff',
-    'backdrop-filter:blur(8px)',
-    'box-shadow:0 10px 30px rgba(0,0,0,0.35)',
-    'font-family:inherit',
-    'cursor:pointer'
-  ].join(';');
-  fab.addEventListener('click', ()=>{
-    showPatchNotes();
-    // пользователь сам нажмёт "Обновить" (с подтверждением)
-  });
-
-  document.body.appendChild(fab);
-  return fab;
-}
-
-function showUpdateUI(show){
-  const fab = ensureUpdateFab();
-  fab.style.display = show ? 'inline-block' : 'none';
-
-  const btn = document.getElementById('pn-update-btn');
-  if(btn) btn.style.display = show ? 'inline-block' : 'none';
-}
-
-export async function swReady(){
-  if(!('serviceWorker' in navigator)) return null;
-  try{
-    const reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
-    await navigator.serviceWorker.ready;
-    return reg;
-  }catch(e){
-    return null;
-  }
-}
-
-function renderPatchNotesFromLocal(){
-  try{
-    const b = localStorage.getItem(LS_BUILD_KEY) || '';
-    const v = localStorage.getItem(LS_VER_KEY) || APP_VERSION;
-    const notes = JSON.parse(localStorage.getItem(LS_NOTES_KEY) || '[]');
-
-    const pnBuild = document.getElementById('pn-build');
-    const pnVer = document.getElementById('pn-ver');
-    const pnNotes = document.getElementById('pn-notes');
-
-    if(pnBuild) pnBuild.textContent = b ? b : '—';
-    if(pnVer) pnVer.textContent = v ? v : '—';
-
-    if(pnNotes){
-      if(notes && notes.length){
-        pnNotes.innerHTML = notes.map(n=>`<div class="changelog-item">• ${escapeHtml(n)}</div>`).join('');
-      } else {
-        pnNotes.innerHTML = `<div class="changelog-item">• Пока нет заметок</div>`;
-      }
-    }
-  }catch(e){}
-}
-
-export function openUpdateMenu(){ showPatchNotes(); }
-export function openIntegrityMenu(){ showPatchNotes(); setTimeout(()=>verifyIntegrity(), 250); }
-
-export function showPatchNotes(){
-  show('patch-screen');
-  renderPatchNotesFromLocal();
-  checkForUpdate(false);
-}
-
-export async function checkForUpdate(showToasts){
-  try{
-    setPatchStatus('Проверяю обновление…');
-    manifestCache = await fetchManifest();
-
-    // отрисуем patch notes прямо из манифеста (самый честный источник)
-    const pnTitle = document.getElementById('pn-title');
-    const pnNotes = document.getElementById('pn-notes');
-    const pnBuild = document.getElementById('pn-build');
-    const pnVer = document.getElementById('pn-ver');
-
-    if(pnTitle) pnTitle.textContent = manifestCache.title || 'Обновления';
-    if(pnBuild) pnBuild.textContent = String(manifestCache.build ?? '—');
-    if(pnVer) pnVer.textContent = String(manifestCache.version ?? APP_VERSION);
-
-    if(pnNotes){
-      const notes = manifestCache.notes || [];
-      pnNotes.innerHTML = (notes.length ? notes : ['Пока нет заметок'])
-        .map(n=>`<div class="changelog-item">• ${escapeHtml(n)}</div>`).join('');
-    }
-
-    const installedBuild = parseInt(localStorage.getItem(LS_BUILD_KEY) || '0', 10) || 0;
-    const newBuild = parseInt(String(manifestCache.build || 0), 10) || 0;
-
-    if(newBuild > installedBuild){
-      showUpdateUI(true);
-      setPatchStatus(`Доступно обновление: build ${newBuild} (у тебя ${installedBuild || 'нет'}).`, 'warn');
-      if(showToasts) toast('🔄 Доступно обновление!', 'success');
-    } else {
-      showUpdateUI(false);
-      setPatchStatus(`У тебя актуальная версия (build ${installedBuild || newBuild}).`, 'ok');
-      if(showToasts) toast('✅ Версия актуальна', 'success');
-    }
-
-    // сохраняем notes/version для оффлайна (build — только после успешного CACHE_BUILD)
-    localStorage.setItem(LS_NOTES_KEY, JSON.stringify(manifestCache.notes || []));
-    localStorage.setItem(LS_VER_KEY, String(manifestCache.version || APP_VERSION));
-  }catch(e){
-    showUpdateUI(false);
-    setPatchStatus('Не удалось проверить обновление (нет сети?).', 'err');
-    if(showToasts) toast('⚠️ Не удалось проверить обновление', 'error');
-  }
-}
-
-async function ensureControllerReady(){
-  // Если воркер зарегистрирован, но controller ещё нет (первый запуск) —
-  // просим пользователя перезагрузить страницу (без “ложных обновился”).
-  if(navigator.serviceWorker.controller) return true;
-
-  const needReload = await new Promise((resolve)=>{
-    openModal('Обновления', `
-      <div class="muted">Чтобы включить авто‑обновления, нужен Service Worker контроллер.</div>
-      <div style="height:10px"></div>
-      <div>Нажми <b>Перезагрузить</b>, затем повтори обновление.</div>
-      <div style="height:12px"></div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-        <button class="btn" id="upd-cancel">Отмена</button>
-        <button class="btn primary" id="upd-reload">Перезагрузить</button>
-      </div>
-    `);
-    const c = document.getElementById('upd-cancel');
-    const r = document.getElementById('upd-reload');
-    if(c) c.onclick = ()=>{ closeModal(); resolve(false); };
-    if(r) r.onclick = ()=>{ closeModal(); resolve(true); };
-  });
-
-  if(needReload){
-    location.reload();
-    return false;
-  }
+// Определяем запущено ли в APK/TWA
+function isRunningInApp() {
+  // TWA
+  if (document.referrer.includes('android-app://')) return true;
+  // WebView
+  if (navigator.userAgent.includes('wv')) return true;
+  // Standalone PWA
+  if (window.matchMedia('(display-mode: standalone)').matches) return true;
+  // Проверка на fullscreen без браузерного UI
+  if (window.navigator.standalone === true) return true;
   return false;
 }
 
-async function confirmUpdate(newBuild){
-  return await new Promise((resolve)=>{
-    openModal('Доступно обновление', `
-      <div>Найден новый build: <b>${escapeHtml(newBuild)}</b>.</div>
-      <div class="muted" style="margin-top:8px">Скачать и применить обновление сейчас?</div>
-      <div style="height:12px"></div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-        <button class="btn" id="upd-no">Не сейчас</button>
-        <button class="btn primary" id="upd-yes">Обновить</button>
-      </div>
-    `);
-    const no = document.getElementById('upd-no');
-    const yes = document.getElementById('upd-yes');
-    if(no) no.onclick = ()=>{ closeModal(); resolve(false); };
-    if(yes) yes.onclick = ()=>{ closeModal(); resolve(true); };
-  });
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-export async function applyUpdate(){
-  try{
-    const reg = await swReady();
-    if(!reg) throw new Error('SW registration failed');
+async function fetchManifest() {
+  var res = await fetch(MANIFEST_URL + '?t=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('manifest fetch failed');
+  return await res.json();
+}
 
-    if(!manifestCache) manifestCache = await fetchManifest();
+function setPatchStatus(text, type) {
+  var el = document.getElementById('pn-status');
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = type === 'ok' ? '#00ff88' : type === 'warn' ? '#ffd700' : type === 'err' ? '#ff2d2d' : 'rgba(255,255,255,0.75)';
+}
 
-    const installedBuild = parseInt(localStorage.getItem(LS_BUILD_KEY) || '0', 10) || 0;
-    const newBuild = parseInt(String(manifestCache.build || 0), 10) || 0;
+function showUpdateBtn(show) {
+  var btn = document.getElementById('pn-update-btn');
+  if (btn) btn.style.display = show ? 'inline-block' : 'none';
+}
 
-    if(!(newBuild > installedBuild)){
+// ========== APK UPDATE POPUP ==========
+function showApkUpdatePopup(newVersion, downloadUrl) {
+  // Проверяем не пропустил ли пользователь эту версию
+  var skipped = localStorage.getItem(LS_APK_SKIP);
+  if (skipped === newVersion) return;
+
+  // Создаём попап
+  var popup = document.createElement('div');
+  popup.id = 'apk-update-popup';
+  popup.innerHTML = 
+    '<div class="apk-popup-overlay">' +
+      '<div class="apk-popup-card">' +
+        '<div class="apk-popup-icon">🚀</div>' +
+        '<div class="apk-popup-title">Доступно обновление!</div>' +
+        '<div class="apk-popup-ver">Версия ' + escapeHtml(newVersion) + '</div>' +
+        '<div class="apk-popup-desc">Новая версия игры доступна для скачивания. Рекомендуем обновить для лучшего опыта!</div>' +
+        '<div class="apk-popup-btns">' +
+          '<button class="apk-btn-update" onclick="downloadApkUpdate()">⬇️ Скачать</button>' +
+          '<button class="apk-btn-later" onclick="skipApkUpdate(\'' + escapeHtml(newVersion) + '\')">Позже</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  
+  document.body.appendChild(popup);
+  
+  // Сохраняем URL для скачивания
+  window._apkDownloadUrl = downloadUrl;
+}
+
+function downloadApkUpdate() {
+  var url = window._apkDownloadUrl || 'https://cst1me.itch.io/perekup2077';
+  window.open(url, '_blank');
+  closeApkPopup();
+}
+
+function skipApkUpdate(version) {
+  localStorage.setItem(LS_APK_SKIP, version);
+  closeApkPopup();
+}
+
+function closeApkPopup() {
+  var popup = document.getElementById('apk-update-popup');
+  if (popup) popup.remove();
+}
+
+// ========== INIT ==========
+export function initUpdater() {
+  registerSW();
+  
+  // Проверяем обновления через 2 секунды после загрузки
+  setTimeout(function() { 
+    checkForUpdate(false); 
+    checkApkUpdate();
+  }, 2000);
+}
+
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+    await navigator.serviceWorker.ready;
+  } catch(e) { console.log('SW registration failed:', e); }
+}
+
+// Проверка обновления APK
+async function checkApkUpdate() {
+  if (!isRunningInApp()) return; // Только для APK/PWA
+  
+  try {
+    var manifest = await fetchManifest();
+    var currentBuild = parseInt(localStorage.getItem(LS_BUILD_KEY) || '0', 10);
+    var serverBuild = parseInt(manifest.build || 0, 10);
+    
+    // Если на сервере есть apk_version и она новее
+    if (manifest.apk_version && manifest.apk_download) {
+      var installedApk = localStorage.getItem('installed_apk_version') || '0';
+      if (manifest.apk_version !== installedApk) {
+        showApkUpdatePopup(manifest.apk_version, manifest.apk_download);
+      }
+    }
+  } catch(e) {
+    console.log('APK update check failed:', e);
+  }
+}
+
+export function showPatchNotes() {
+  show('patch-screen');
+  renderPatchNotes();
+  checkForUpdate(false);
+}
+
+function renderPatchNotes() {
+  try {
+    var b = localStorage.getItem(LS_BUILD_KEY) || '';
+    var pnBuild = document.getElementById('pn-build');
+    var pnVer = document.getElementById('pn-ver');
+    if (pnBuild) pnBuild.textContent = b || '—';
+    if (pnVer) pnVer.textContent = APP_VERSION;
+  } catch(e) {}
+}
+
+export async function checkForUpdate(showToasts) {
+  try {
+    setPatchStatus('Проверяю обновление…');
+    manifestCache = await fetchManifest();
+
+    var pnTitle = document.getElementById('pn-title');
+    var pnNotes = document.getElementById('pn-notes');
+    var pnBuild = document.getElementById('pn-build');
+    var pnVer = document.getElementById('pn-ver');
+
+    if (pnTitle) pnTitle.textContent = manifestCache.title || 'Обновления';
+    if (pnBuild) pnBuild.textContent = String(manifestCache.build || '—');
+    if (pnVer) pnVer.textContent = String(manifestCache.version || APP_VERSION);
+
+    if (pnNotes) {
+      var notes = manifestCache.notes || [];
+      pnNotes.innerHTML = (notes.length ? notes : ['Нет заметок']).map(function(n) {
+        return '<div class="changelog-item">• ' + escapeHtml(n) + '</div>';
+      }).join('');
+    }
+
+    var installedBuild = parseInt(localStorage.getItem(LS_BUILD_KEY) || '0', 10) || 0;
+    var newBuild = parseInt(String(manifestCache.build || 0), 10) || 0;
+
+    if (newBuild > installedBuild) {
+      showUpdateBtn(true);
+      setPatchStatus('🔄 Доступно: build ' + newBuild + ' (у тебя: ' + (installedBuild || 'нет') + ')', 'warn');
+      if (showToasts) toast('🔄 Доступно обновление!', 'success');
+    } else {
+      showUpdateBtn(false);
+      setPatchStatus('✅ Актуальная версия (build ' + (installedBuild || newBuild) + ')', 'ok');
+      if (showToasts) toast('✅ Версия актуальна', 'success');
+    }
+  } catch(e) {
+    showUpdateBtn(false);
+    setPatchStatus('❌ Ошибка проверки (нет сети?)', 'err');
+    if (showToasts) toast('⚠️ Ошибка проверки', 'error');
+  }
+}
+
+export async function applyUpdate() {
+  try {
+    if (!manifestCache) manifestCache = await fetchManifest();
+
+    var installedBuild = parseInt(localStorage.getItem(LS_BUILD_KEY) || '0', 10) || 0;
+    var newBuild = parseInt(String(manifestCache.build || 0), 10) || 0;
+
+    if (!(newBuild > installedBuild)) {
       toast('✅ Уже актуально', 'success');
-      showUpdateUI(false);
+      showUpdateBtn(false);
       return;
     }
 
-    const okConfirm = await confirmUpdate(newBuild);
-    if(!okConfirm) return;
+    var btn = document.getElementById('pn-update-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⬇️ Скачиваю…'; }
 
-    // Controller must exist to message it
-    const controllerOk = await ensureControllerReady();
-    if(!controllerOk) return;
+    setPatchStatus('Скачиваю обновление…', 'warn');
 
-    const btn = document.getElementById('pn-update-btn');
-    if(btn){ btn.disabled = true; btn.textContent = '⬇️ Скачиваю…'; }
-
-    setPatchStatus('Скачиваю файлы обновления…', 'warn');
-
-    const result = await new Promise((resolve) => {
-      const ch = new MessageChannel();
-      ch.port1.onmessage = (ev)=> resolve(ev.data || {});
-      navigator.serviceWorker.controller.postMessage(
-        { type:'CACHE_BUILD', build: manifestCache.build, files: manifestCache.files },
-        [ch.port2]
-      );
-    });
-
-    if(!result.ok){
-      throw new Error(result.error || 'cache failed');
+    // Очищаем кеши
+    if (window.caches) {
+      var keys = await caches.keys();
+      await Promise.all(keys.map(function(k) { return caches.delete(k); }));
     }
 
-    // только здесь фиксируем build
-    localStorage.setItem(LS_BUILD_KEY, String(manifestCache.build || 0));
-    localStorage.setItem(LS_VER_KEY, String(manifestCache.version || APP_VERSION));
-    localStorage.setItem(LS_NOTES_KEY, JSON.stringify(manifestCache.notes || []));
+    // Удаляем SW
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      var regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(function(r) { return r.unregister(); }));
+    }
 
-    setPatchStatus('Обновление установлено. Перезагружаю…', 'ok');
+    // Сохраняем версию
+    localStorage.setItem(LS_BUILD_KEY, String(newBuild));
+
+    setPatchStatus('✅ Готово! Перезагружаю…', 'ok');
     toast('🚀 Обновление установлено!', 'success');
 
-    // reload только после ok:true
-    setTimeout(()=>location.reload(), 250);
-  }catch(e){
-    const btn = document.getElementById('pn-update-btn');
-    if(btn){ btn.disabled = false; btn.textContent = '⬆ Обновить'; }
-    setPatchStatus('Ошибка обновления: ' + String(e?.message || e), 'err');
+    setTimeout(function() { location.reload(true); }, 500);
+  } catch(e) {
+    var btn = document.getElementById('pn-update-btn');
+    if (btn) { btn.disabled = false; btn.textContent = '⬇️ Обновить'; }
+    setPatchStatus('❌ Ошибка: ' + String(e.message || e), 'err');
     toast('❌ Ошибка обновления', 'error');
   }
 }
 
-// Заглушка проверки целостности (можно расширить)
-export async function verifyIntegrity(){
-  try{
-    setPatchStatus('Проверяю целостность…');
-    const reg = await swReady();
-    if(!reg) throw new Error('SW not available');
-    if(!manifestCache) manifestCache = await fetchManifest();
-    setPatchStatus('OK. Если есть проблемы — нажми "Обновить".', 'ok');
-  }catch(e){
-    setPatchStatus('Integrity check failed.', 'err');
-  }
-}
-
-export async function initSteamUpdate(){
-  ensureUpdateFab();
-  await swReady();
-
-  // Подтягиваем manifest для notes/version; build НЕ выставляем автоматически.
-  try{
-    manifestCache = await fetchManifest();
-    localStorage.setItem(LS_VER_KEY, String(manifestCache.version || APP_VERSION));
-    localStorage.setItem(LS_NOTES_KEY, JSON.stringify(manifestCache.notes || []));
-  }catch(_e){}
-
-  // Ненавязчивая проверка обновления на старте
-  setTimeout(()=>checkForUpdate(false), 3500);
-}
-
-
-// ──────────────────────────────────────────────
-//  "ПОЧИНИТЬ ИГРУ" — сброс кеша/Service Worker
-//  НЕ трогаем игровой прогресс (localStorage keys игры не удаляем)
-// ──────────────────────────────────────────────
-export async function resetAppCachesAndReload(){
-  try{
-    // Попросим активный SW удалить кеши
-    if(navigator.serviceWorker && navigator.serviceWorker.controller){
-      const ok = await new Promise((resolve)=>{
-        const ch = new MessageChannel();
-        ch.port1.onmessage = (e)=>resolve(!!(e.data && e.data.ok));
-        navigator.serviceWorker.controller.postMessage({ type:'RESET_CACHES' }, [ch.port2]);
-        setTimeout(()=>resolve(false), 2500);
-      });
+export async function resetAppCachesAndReload() {
+  try {
+    toast('🧹 Очищаю кеш…', 'success');
+    
+    if (window.caches) {
+      var keys = await caches.keys();
+      await Promise.all(keys.map(function(k) { return caches.delete(k); }));
     }
 
-    // Дублирующая страховка: очистить CacheStorage (на случай если SW не активен)
-    if(window.caches){
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      var regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(function(r) { return r.unregister(); }));
     }
 
-    // Разрегистрировать SW (чтобы старт был "с нуля")
-    if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
-    }
-
-    // очистить только ключи апдейтера (не прогресс)
-    try{
-      localStorage.removeItem(LS_BUILD_KEY);
-    }catch(_e){}
-  }catch(e){
+    localStorage.removeItem(LS_BUILD_KEY);
+    localStorage.removeItem(LS_APK_SKIP);
+  } catch(e) {
     console.warn(e);
   }
 
   location.href = './?fix=' + Date.now();
+}
+
+// Expose for onclick
+if (typeof window !== 'undefined') {
+  window.downloadApkUpdate = downloadApkUpdate;
+  window.skipApkUpdate = skipApkUpdate;
+  window.closeApkPopup = closeApkPopup;
 }

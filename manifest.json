@@ -1,13 +1,16 @@
 {
-  "version": "3.0.3",
-  "build": 303,
+  "version": "3.0.5",
+  "build": 305,
   "releasedAt": "2026-03-05",
-  "title": "HOTFIX v3.0.3 — Железобетонное авто‑обновление",
+  "title": "v3.0.5 — Визуальные повреждения",
   "notes": [
-    "Критический фикс: убрана лишняя скобка (JS не падал)",
-    "Режим 60 секунд: добавлены buy/haggle + комбо/скорость/ачивки",
-    "Код разделён на модули (index разгружен)",
-    "Подготовка структуры для безопасного развития"
+    "✅ Исправлен крестик закрытия карточки",
+    "✅ Машина не слетает в услугах",
+    "✅ Добавлена валюта ₽ везде",
+    "🚗 25 видов повреждений с SVG визуализацией",
+    "🔧 20+ услуг по категориям",
+    "📅 12 событий дня",
+    "📱 Система обновления APK"
   ],
   "files": [
     "./index.html",
@@ -24,27 +27,19 @@
     "./sw.js",
     "./manifest.json",
     "./icons/icon-192.png",
-    "./icons/icon-512.png",
-    "./.nojekyll"
+    "./icons/icon-512.png"
   ],
+  "apk_version": "1.0.5",
+  "apk_download": "https://cst1me.itch.io/perekup2077",
   "name": "ПЕРЕКУП 2077",
-  "short_name": "ПЕРЕКУП 2077",
+  "short_name": "ПЕРЕКУП",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0d0515",
   "theme_color": "#0d0515",
-  "description": "PEREKUP 2077 — PWA-игра: режим 60 секунд и симулятор перекупа.",
   "icons": [
-    {
-      "src": "./icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "./icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    {"src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
   ]
 }

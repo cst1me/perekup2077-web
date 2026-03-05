@@ -1,24 +1,23 @@
-// PEREKUP 2077 — static data
-export const comments = [
+// PEREKUP 2077 — static data v3.0.5
+export var comments = [
   "Не бита, не крашена, бабушка в церковь ездила","Масло не жрёт, просто любит","Пробег реальный, земля плоская",
   "Один хозяин, не считая пятерых","Двигатель шепчет","ДТП не было, забор сам выпрыгнул",
   "Расход 6л в мечтах","Коробка хрустит для музыки","Кондей был заправлен в 2008",
   "Зимой заводится с толкача","Тачка огонь, раз горела","Движок миллионник, осталось 999к",
-  "Срочно — жена узнала","Пацан к пацану, зверь машина","Торг у капота, капот не открывать",
-  "Климат-контроль — окна","Круиз — кирпич под газ","Парктроник — жена с балкона"
+  "Срочно — жена узнала","Пацан к пацану, зверь машина","Торг у капота, капот не открывать"
 ];
 
-export const scamComments = [
+export var scamComments = [
   "Срочно улетаю, отдам за копейки","Торга нет, цена смешная уже","Документы у брата, завтра привезу",
-  "Пробег 30к, дед не ездил вообще","Только предоплата, машина в другом городе","VIN? Зачем тебе"
+  "Пробег 30к, дед не ездил вообще","Только предоплата, машина в другом городе"
 ];
 
-export const legendaryComments = [
+export var legendaryComments = [
   "Коллекционный экземпляр, один из ста","Гаражное хранение 20 лет, как новая",
   "Дедушка был гонщиком, машина легенда","Полный сток, ни одной замены"
 ];
 
-export const cars = [
+export var cars = [
   {n:"Классика 2107",e:"🚗",min:30000,max:80000},
   {n:"Хэтчбек Народный",e:"🚙",min:50000,max:150000},
   {n:"Седан Эконом",e:"🚗",min:150000,max:400000},
@@ -31,40 +30,108 @@ export const cars = [
   {n:"Люкс-Кроссовер",e:"🏎️",min:1500000,max:7000000}
 ];
 
-export const names = ["Ашот","Рустам","Серёга","Дядя Вова","Гена","Армен","Борис","Саня","Тимур","Мага"];
-export const scamNames = ["Артём777","Дмитрий_Авто","Срочно_Продам","ЧестныйПродавец"];
-export const legendaryNames = ["Коллекционер Иван","Дед Михалыч","Гараж №7"];
-export const avas = ["👨","🧔","👴","🧑","😎","🥸"];
-export const scamAvas = ["🕵️","👤","🤖","👻"];
-export const legendaryAvas = ["👑","🎩","🧐"];
-export const locs = ["ВДНХ","Выхино","Марьино","Тушино","Химки","Бутово","Митино"];
+export var names = ["Ашот","Рустам","Серёга","Дядя Вова","Гена","Армен","Борис","Саня","Тимур","Мага"];
+export var scamNames = ["Артём777","Дмитрий_Авто","Срочно_Продам","ЧестныйПродавец"];
+export var legendaryNames = ["Коллекционер Иван","Дед Михалыч","Гараж №7"];
+export var avas = ["👨","🧔","👴","🧑","😎","🥸"];
+export var scamAvas = ["🕵️","👤","🤖","👻"];
+export var legendaryAvas = ["👑","🎩","🧐"];
+export var locs = ["ВДНХ","Выхино","Марьино","Тушино","Химки","Бутово","Митино","Люблино","Строгино","Медведково"];
 
-export const srvs = [
-  {id:"wash",n:"Мойка",d:"Помыть",p:2000,i:"🧽",e:{c:5}},
-  {id:"oil",n:"Масло",d:"Замена",p:5000,i:"🛢️",e:{c:10}},
-  {id:"paint",n:"Покраска",d:"Царапины",p:30000,i:"🎨",e:{c:25}},
-  {id:"engine",n:"Двигатель",d:"Ремонт",p:80000,i:"⚙️",e:{c:40}},
-  {id:"mileage",n:"Пробег",d:"-50000км🤫",p:15000,i:"🔧",e:{m:-50000}},
-  {id:"diag",n:"Диагностика",d:"Проблемы",p:3000,i:"💻",e:{r:1}}
+// Расширенная система повреждений с визуализацией
+export var DAMAGE_PARTS = [
+  // Кузов
+  {key:'hood',name:'Капот',zone:'front',chance:0.22,icon:'🔲',repairCost:15000,desc:'Вмятина на капоте'},
+  {key:'bumper_f',name:'Бампер передний',zone:'front',chance:0.28,icon:'▬',repairCost:8000,desc:'Трещина бампера'},
+  {key:'bumper_r',name:'Бампер задний',zone:'rear',chance:0.25,icon:'▬',repairCost:8000,desc:'Царапина бампера'},
+  {key:'fender_l',name:'Крыло левое',zone:'left',chance:0.20,icon:'◢',repairCost:12000,desc:'Вмятина на крыле'},
+  {key:'fender_r',name:'Крыло правое',zone:'right',chance:0.20,icon:'◣',repairCost:12000,desc:'Помятое крыло'},
+  {key:'door_fl',name:'Дверь передняя Л',zone:'left',chance:0.18,icon:'🚪',repairCost:18000,desc:'Царапина двери'},
+  {key:'door_fr',name:'Дверь передняя П',zone:'right',chance:0.18,icon:'🚪',repairCost:18000,desc:'Вмятина двери'},
+  {key:'door_rl',name:'Дверь задняя Л',zone:'left',chance:0.15,icon:'🚪',repairCost:16000,desc:'Скол на двери'},
+  {key:'door_rr',name:'Дверь задняя П',zone:'right',chance:0.15,icon:'🚪',repairCost:16000,desc:'Ржавчина двери'},
+  {key:'trunk',name:'Багажник',zone:'rear',chance:0.12,icon:'📦',repairCost:14000,desc:'Вмятина багажника'},
+  {key:'roof',name:'Крыша',zone:'top',chance:0.08,icon:'⬜',repairCost:25000,desc:'Вмятина крыши (град)'},
+  // Стёкла
+  {key:'windshield',name:'Лобовое стекло',zone:'front',chance:0.15,icon:'🪟',repairCost:12000,desc:'Трещина лобового'},
+  {key:'glass_rear',name:'Заднее стекло',zone:'rear',chance:0.10,icon:'🪟',repairCost:8000,desc:'Скол заднего стекла'},
+  {key:'glass_l',name:'Стекло левое',zone:'left',chance:0.08,icon:'▫',repairCost:5000,desc:'Царапина стекла'},
+  {key:'glass_r',name:'Стекло правое',zone:'right',chance:0.08,icon:'▫',repairCost:5000,desc:'Скол стекла'},
+  // Оптика
+  {key:'headlight_l',name:'Фара левая',zone:'front',chance:0.18,icon:'💡',repairCost:7000,desc:'Разбитая фара'},
+  {key:'headlight_r',name:'Фара правая',zone:'front',chance:0.18,icon:'💡',repairCost:7000,desc:'Мутная фара'},
+  {key:'taillight_l',name:'Фонарь левый',zone:'rear',chance:0.14,icon:'🔴',repairCost:4000,desc:'Треснутый фонарь'},
+  {key:'taillight_r',name:'Фонарь правый',zone:'rear',chance:0.14,icon:'🔴',repairCost:4000,desc:'Разбитый фонарь'},
+  {key:'mirror_l',name:'Зеркало левое',zone:'left',chance:0.12,icon:'🔳',repairCost:3000,desc:'Сломано зеркало'},
+  {key:'mirror_r',name:'Зеркало правое',zone:'right',chance:0.12,icon:'🔳',repairCost:3000,desc:'Треснуто зеркало'},
+  // Механика (видно при осмотре)
+  {key:'suspension',name:'Подвеска',zone:'under',chance:0.20,icon:'🔧',repairCost:25000,desc:'Стук подвески'},
+  {key:'exhaust',name:'Выхлоп',zone:'under',chance:0.15,icon:'💨',repairCost:10000,desc:'Прогар выхлопа'},
+  {key:'brakes',name:'Тормоза',zone:'under',chance:0.18,icon:'🛑',repairCost:15000,desc:'Скрип тормозов'},
+  {key:'tires',name:'Шины',zone:'under',chance:0.22,icon:'⭕',repairCost:20000,desc:'Изношенные шины'}
 ];
 
-export const DAMAGE_PARTS = [
-  {key:'hood',name:'Капот',chance:0.25},
-  {key:'door',name:'Дверь',chance:0.35},
-  {key:'fender',name:'Крыло',chance:0.28},
-  {key:'bumper',name:'Бампер',chance:0.22},
-  {key:'glass',name:'Стекло',chance:0.18},
-  {key:'headlight',name:'Фара',chance:0.20}
+// Расширенные услуги
+export var srvs = [
+  // Базовые
+  {id:"wash",n:"Мойка",d:"Чистка кузова",p:2000,i:"🧽",e:{c:3,vm:1.02},cat:'basic'},
+  {id:"polish",n:"Полировка",d:"Блеск кузова",p:5000,i:"✨",e:{c:5,vm:1.04},cat:'basic'},
+  {id:"oil",n:"Замена масла",d:"Свежее масло",p:5000,i:"🛢️",e:{c:8,vm:1.03},cat:'basic'},
+  {id:"filter",n:"Фильтры",d:"Воздушный+салон",p:3000,i:"🌀",e:{c:4,vm:1.02},cat:'basic'},
+  // Кузовной ремонт
+  {id:"dent",n:"PDR вмятины",d:"Без покраски",p:8000,i:"🔨",e:{c:10,vm:1.05,fixZone:'any'},cat:'body'},
+  {id:"paint_local",n:"Локальная покраска",d:"1 элемент",p:15000,i:"🎨",e:{c:15,vm:1.08,fixZone:'any'},cat:'body'},
+  {id:"paint_full",n:"Полная покраска",d:"Весь кузов",p:80000,i:"🖌️",e:{c:35,vm:1.20,fixAll:true},cat:'body'},
+  {id:"rust",n:"Антикор",d:"Обработка днища",p:12000,i:"🛡️",e:{c:12,vm:1.06},cat:'body'},
+  // Механика
+  {id:"engine",n:"Ремонт двигателя",d:"Капремонт",p:80000,i:"⚙️",e:{c:40,vm:1.18},cat:'mech'},
+  {id:"transmission",n:"Ремонт КПП",d:"Коробка передач",p:45000,i:"🔄",e:{c:25,vm:1.12},cat:'mech'},
+  {id:"suspension",n:"Ремонт подвески",d:"Стойки+рычаги",p:25000,i:"🔧",e:{c:18,vm:1.08,fixPart:'suspension'},cat:'mech'},
+  {id:"brakes",n:"Ремонт тормозов",d:"Колодки+диски",p:15000,i:"🛑",e:{c:12,vm:1.06,fixPart:'brakes'},cat:'mech'},
+  {id:"exhaust",n:"Ремонт выхлопа",d:"Глушитель",p:10000,i:"💨",e:{c:8,vm:1.04,fixPart:'exhaust'},cat:'mech'},
+  {id:"tires",n:"Новые шины",d:"Комплект R16",p:20000,i:"⭕",e:{c:10,vm:1.05,fixPart:'tires'},cat:'mech'},
+  // Стёкла и оптика
+  {id:"windshield",n:"Замена лобового",d:"Новое стекло",p:12000,i:"🪟",e:{c:8,vm:1.04,fixPart:'windshield'},cat:'glass'},
+  {id:"headlights",n:"Ремонт фар",d:"Полировка+замена",p:8000,i:"💡",e:{c:6,vm:1.03,fixZone:'front'},cat:'glass'},
+  {id:"taillights",n:"Ремонт фонарей",d:"Задняя оптика",p:5000,i:"🔴",e:{c:4,vm:1.02,fixZone:'rear'},cat:'glass'},
+  // Специальные
+  {id:"diag",n:"Диагностика",d:"Комп. проверка",p:3000,i:"💻",e:{r:1,vm:1.02},cat:'special'},
+  {id:"mileage",n:"Корректировка",d:"Пробег -50000км 🤫",p:15000,i:"📊",e:{m:-50000,vm:1.03},cat:'special'},
+  {id:"detailing",n:"Детейлинг",d:"Полная химчистка",p:25000,i:"🧹",e:{c:15,vm:1.10},cat:'special'},
+  {id:"tuning",n:"Чип-тюнинг",d:"+20% мощности",p:35000,i:"🚀",e:{c:5,vm:1.15},cat:'special'}
 ];
 
-export const DAILY_EVENTS = [
-  {id:'svc_sale',w:16,t:'🛠️ Скидка в сервисе',d:'Услуги -20%',run({G}){G.mods.srvDiscount=0.2;}},
-  {id:'taxi_boom',w:14,t:'🚕 Бум такси',d:'Такси платит +25%',run({G}){G.mods.taxiMult=1.25;}},
-  {id:'market_hot',w:12,t:'🔥 Горячий рынок',d:'Цены выросли +10%',run({G}){G.mods.apMult=1.1;}},
-  {id:'market_cool',w:12,t:'🥶 Холодный рынок',d:'Цены просели -8%',run({G}){G.mods.apMult=0.92;}},
-  {id:'inspection',w:10,t:'👮 Проверка',d:'Штраф за суету',run({G,toast,rnd}){G.m-=rnd(1500,5000);toast('👮 Штраф!','error');}},
-  {id:'upkeep_up',w:10,t:'📈 Дорогие стоянки',d:'Расходы +35%',run({G}){G.mods.upkeepMult=1.35;}},
-  {id:'blogger',w:8,t:'📸 Блогер хайпанул',d:'Репутация +',run({G,rnd}){G.rep+=rnd(2,5);}}
+// Категории услуг
+export var SERVICE_CATS = [
+  {id:'basic',name:'Базовое',icon:'🧽'},
+  {id:'body',name:'Кузов',icon:'🎨'},
+  {id:'mech',name:'Механика',icon:'⚙️'},
+  {id:'glass',name:'Стёкла',icon:'🪟'},
+  {id:'special',name:'Особые',icon:'⭐'}
 ];
 
-export const TAXI_DAILY_LIMIT = 10;
+export var DAILY_EVENTS = [
+  {id:'svc_sale',w:14,t:'🛠️ Скидка в сервисе',d:'Все услуги -20%',run:function(ctx){ctx.G.mods.srvDiscount=0.2;}},
+  {id:'parts_sale',w:10,t:'📦 Дешёвые запчасти',d:'Ремонт кузова -30%',run:function(ctx){ctx.G.mods.bodyDiscount=0.3;}},
+  {id:'taxi_boom',w:14,t:'🚕 Бум такси',d:'Такси платит +25%',run:function(ctx){ctx.G.mods.taxiMult=1.25;}},
+  {id:'taxi_dead',w:8,t:'🚕 Такси в минусе',d:'Такси -20%',run:function(ctx){ctx.G.mods.taxiMult=0.8;}},
+  {id:'market_hot',w:12,t:'🔥 Горячий рынок',d:'Цены +15%',run:function(ctx){ctx.G.mods.apMult=1.15;}},
+  {id:'market_cool',w:12,t:'🥶 Холодный рынок',d:'Цены -10%',run:function(ctx){ctx.G.mods.apMult=0.9;}},
+  {id:'buyer_rush',w:10,t:'💰 Наплыв покупателей',d:'Продажи +20%',run:function(ctx){ctx.G.mods.sellMult=1.2;}},
+  {id:'inspection',w:8,t:'👮 Проверка ГИБДД',d:'Штраф за нарушения',run:function(ctx){var fine=ctx.rnd(2000,8000);ctx.G.m-=fine;ctx.toast('👮 Штраф '+ctx.fmt(fine)+'₽!','error');}},
+  {id:'parking_up',w:8,t:'📈 Дорогие стоянки',d:'Расходы +40%',run:function(ctx){ctx.G.mods.upkeepMult=1.4;}},
+  {id:'blogger',w:6,t:'📸 Блогер снял обзор',d:'Репутация ++',run:function(ctx){ctx.G.rep+=ctx.rnd(3,8);}},
+  {id:'rain',w:10,t:'🌧️ Дождливый день',d:'Меньше клиентов',run:function(ctx){ctx.G.mods.taxiMult=0.7;ctx.G.mods.sellMult=0.85;}},
+  {id:'sunny',w:10,t:'☀️ Солнечный день',d:'Все хотят тачки',run:function(ctx){ctx.G.mods.apMult=1.08;ctx.G.mods.sellMult=1.1;}}
+];
+
+export var TAXI_DAILY_LIMIT = 10;
+
+// Дополнительные локации для такси
+export var TAXI_ROUTES = [
+  {from:"Центр",to:"Аэропорт",basePay:2500,distance:45},
+  {from:"Вокзал",to:"Отель",basePay:800,distance:8},
+  {from:"ТЦ Мега",to:"Жилой район",basePay:600,distance:12},
+  {from:"Офис",to:"Ресторан",basePay:400,distance:5},
+  {from:"Клуб",to:"Дом",basePay:1200,distance:20}
+];
