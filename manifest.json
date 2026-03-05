@@ -1,26 +1,16 @@
 {
-  "build": 304,
-"version": "3.0.4"
+  "version": "3.0.1",
+  "build": 301,
   "releasedAt": "2026-03-05",
-  "title": "HOTFIX v3.0.3 — Железобетонное авто‑обновление",
+  "title": "MEGA UPDATE v3.0.1",
   "notes": [
-    "Критический фикс: убрана лишняя скобка (JS не падал)",
-    "Режим 60 секунд: добавлены buy/haggle + комбо/скорость/ачивки",
-    "Код разделён на модули (index разгружен)",
-    "Подготовка структуры для безопасного развития"
+    "Исправлен таймер (без рывков)",
+    "Такси-лимит теперь по локальному дню",
+    "Оптимизация: без пересоздания offer DOM",
+    "Добавлены вибрации и звуки"
   ],
   "files": [
-    "./index.html",
-    "./styles.css",
-    "./js/main.js",
-    "./js/core/utils.js",
-    "./js/core/state.js",
-    "./js/core/data.js",
-    "./js/ui/modal.js",
-    "./js/ui/screens.js",
-    "./js/modes/sixty.js",
-    "./js/modes/sim.js",
-    "./js/update/updater.js",
-    "./sw.js"
+    "/index.html",
+    "/sw.js"
   ]
 }

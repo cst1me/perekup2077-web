@@ -31,7 +31,17 @@ function showAbout(){
   `);
 }
 
+// === EXPOSE EARLY (so inline onclick works even if boot() fails) ===
+Object.assign(window, {
+  startSixty, startRound, toMenu, startSim,
+  openUpdateMenu, openIntegrityMenu, showPatchNotes, checkForUpdate, applyUpdate, verifyIntegrity,
+  closeModal, refreshMarket, sellFromModal, setSrvFromModal,
+  showAbout
+});
+
+
 function boot(){
+  try{
   loadGlobalStats();
   updateGlobalStatsUI();
   wireTabs();
@@ -46,20 +56,18 @@ function boot(){
       if(e.target === m) closeModal(e);
     });
   }
-
-  // expose for inline onclick
-  Object.assign(window, {
-    startSixty, startRound, toMenu, startSim,
-    openUpdateMenu, openIntegrityMenu, showPatchNotes, checkForUpdate, applyUpdate, verifyIntegrity,
-    closeModal, refreshMarket, sellFromModal, setSrvFromModal,
-    showAbout
-  });
+  // expose for inline onclick (legacy)
+  // NOTE: moved to module top-level for reliability on web
 
   // basic safety
   window.addEventListener('error', (e)=>{
     console.error(e.error || e.message);
     toast('Ошибка в игре — проверь консоль', 'error');
   });
+  }catch(e){
+    console.error(e);
+    try{ toast('Ошибка инициализации — обнови страницу', 'error'); }catch(_e){}
+  }
 }
 
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
