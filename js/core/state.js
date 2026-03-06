@@ -1,8 +1,8 @@
 // PEREKUP 2077 — State v3.0.8
 import { fmt, getTodayKey } from './utils.js';
 
-export var APP_VERSION = '3.1.0';
-export var BUILD_VERSION = '310';
+export var APP_VERSION = '3.1.3';
+export var BUILD_VERSION = '313';
 export var COMMIT_HASH = '__COMMIT__';
 
 export var GS = { totalDeals: 0, totalProfit: 0, bestScore: 0, achievements: {} };
@@ -117,6 +117,16 @@ export function resetSKeepBuys() {
 
 export function totalBuys() { return (S.buys || 0) + (G.buys || 0); }
 export function hiddenLevel() { return Math.min(4, 1 + Math.floor(totalBuys() / 10)); }
+
+
+export function getRepTier(rep) {
+  rep = Number(rep) || 0;
+  if (rep >= 160) return { key: 'elite', label: 'ЭЛИТА', market: 'Премиум поток', condBonus: 12, buyMult: 0.94, rareChance: 0.18, riskBias: -0.06 };
+  if (rep >= 80) return { key: 'dealer', label: 'ДИЛЕР', market: 'Сильные лоты', condBonus: 8, buyMult: 0.97, rareChance: 0.10, riskBias: -0.03 };
+  if (rep >= 25) return { key: 'street', label: 'УЛИЦА', market: 'Уверенный поток', condBonus: 4, buyMult: 0.99, rareChance: 0.06, riskBias: -0.01 };
+  if (rep <= -20) return { key: 'shady', label: 'ТЕНЕВОЙ', market: 'Серый риск', condBonus: -8, buyMult: 0.96, rareChance: 0.03, riskBias: 0.08 };
+  return { key: 'rookie', label: 'НОВИЧОК', market: 'Стандарт', condBonus: 0, buyMult: 1.0, rareChance: 0.04, riskBias: 0.00 };
+}
 
 export function loadTaxiDaily() {
   try {

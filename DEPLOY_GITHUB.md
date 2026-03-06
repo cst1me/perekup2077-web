@@ -35,3 +35,9 @@
 
 ## 5. APK
 Рекомендуется загружать APK в GitHub Releases и вставлять ссылку в `apk_url`.
+
+
+## Stable-max notes
+- `version.json` and `patches/patches.json` are fetched with network-first and timeout fallback.
+- If GitHub Pages is temporarily unavailable, the game stays in local mode instead of showing a hard failure.
+- `offline.html` is used as the navigation fallback for PWA/WebView.

@@ -1,4 +1,4 @@
-// PEREKUP 2077 — Main v3.0.9
+// PEREKUP 2077 — Main v3.1.1 stable-max
 import { toast } from './core/utils.js';
 import { loadGlobalStats, updateGlobalStatsUI, APP_VERSION, BUILD_VERSION, COMMIT_HASH } from './core/state.js';
 import { saveSnapshot, consumePendingRestore } from './core/snapshots.js';
@@ -60,6 +60,14 @@ async function boot() {
   window.addEventListener('error', function(e) {
     console.error('[ERR]', e.error || e.message || e);
     toast('Ошибка — F12 для деталей', 'error');
+  });
+
+  document.addEventListener('visibilitychange', function() {
+    try {
+      if (!document.hidden && typeof window.checkForUpdate === 'function') {
+        setTimeout(function() { window.checkForUpdate(false); }, 250);
+      }
+    } catch (e) {}
   });
 
   console.log('🚗 Ready!');

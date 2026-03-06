@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+<defs>
+<linearGradient id="bg1" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#12121a"/><stop offset="100%" stop-color="#08080d"/></linearGradient>
+<linearGradient id="glow1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff0066"/><stop offset="100%" stop-color="#ff0066"/></linearGradient>
+<filter id="neon1"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="2" y="2" width="176" height="236" rx="10" fill="url(#bg1)" stroke="#ff0066" stroke-width="2"/>
+<rect x="12" y="12" width="156" height="100" rx="6" fill="#0a0a12" stroke="#1a1a2a" stroke-width="1"/>
+<text x="90" y="75" font-size="50" text-anchor="middle" filter="url(#neon1)">🚗</text>
+<rect x="10" y="8" width="40" height="16" rx="3" fill="#1a1a2a" stroke="#ff0066" stroke-width="1"/>
+<text x="30" y="19" font-family="Arial" font-size="7" fill="#ff0066" text-anchor="middle">RISK</text>
+<rect x="55" y="8" width="45" height="16" rx="3" fill="#00ff88"/>
+<text x="77" y="19" font-family="Arial" font-size="7" fill="#000" text-anchor="middle" font-weight="bold">CLEAN</text>
+<rect x="40" y="120" width="100" height="24" rx="4" fill="#0a0a12" stroke="#00ffff" stroke-width="1"/>
+<text x="90" y="133" font-family="Arial" font-size="8" fill="#00ffff" text-anchor="middle" font-weight="bold">PEREKUP 2077</text>
+<text x="90" y="142" font-family="Arial" font-size="5" fill="#444" text-anchor="middle">BLACK MARKET AUTO EXCHANGE</text>
+<text x="90" y="175" font-family="Arial" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold">Классика 2107</text>
+<line x1="30" y1="190" x2="150" y2="190" stroke="#222" stroke-width="1"/>
+<rect x="50" y="220" width="80" height="4" rx="2" fill="#ff0066" opacity="0.7"/>
+</svg>

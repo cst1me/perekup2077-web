@@ -1,7 +1,7 @@
 // PEREKUP 2077 — Simulator mode v3.0.5
 import { fmt, rnd, pick, clamp, toast, vibrate, enterFullscreen } from '../core/utils.js';
 import { cars, comments, names, avas, srvs, locs, DAILY_EVENTS, TAXI_DAILY_LIMIT, DAMAGE_PARTS, SERVICE_CATS } from '../core/data.js';
-import { G, GS, saveGlobalStats, loadTaxiDaily, taxiUseOne, hiddenLevel, checkAchievements, showAchievement } from '../core/state.js';
+import { G, GS, saveGlobalStats, loadTaxiDaily, taxiUseOne, hiddenLevel, checkAchievements, showAchievement, getRepTier } from '../core/state.js';
 import { saveSnapshot } from '../core/snapshots.js';
 import { show } from '../ui/screens.js';
 
@@ -18,14 +18,14 @@ function slugifyCarName(name) {
 }
 
 function getCarImageSrc(c) {
-  return './assets/cars/' + slugifyCarName(c && c.n) + '.webp';
+  return './assets/cards/' + slugifyCarName(c && c.n) + '.svg';
 }
 
 function getCarImageTag(c, cls) {
   var src = getCarImageSrc(c);
   var alt = (c && c.n ? c.n : 'Автомобиль').replace(/"/g, '&quot;');
   cls = cls || 'car-img';
-  return '<img class="' + cls + '" src="' + src + '" alt="' + alt + '" loading="lazy" onerror="this.onerror=null;this.src=\'./assets/cars/default.webp\';">';
+  return '<img class="' + cls + '" src="' + src + '" alt="' + alt + '" loading="lazy" onerror="this.onerror=null;this.src=\'./assets/cards/default.svg\';">';
 }
 
 function getConditionClass(cond) {
@@ -45,6 +45,99 @@ function getProfitClass(v) {
   return v >= 0 ? 'pos' : 'neg';
 }
 
+
+function getKnownDamages(c) {
+  return Array.isArray(c && c.damages) ? c.damages : [];
+}
+
+function getHiddenDamages(c) {
+  return Array.isArray(c && c.hiddenDamages) ? c.hiddenDamages : [];
+}
+
+function getUnknownDamageCount(c) {
+  return c && !c.pr ? getHiddenDamages(c).length : 0;
+}
+
+function mergeUniqueDamages(listA, listB) {
+  var map = {};
+  return (listA || []).concat(listB || []).filter(function(d) {
+    var key = d && d.key ? d.key : ('i_' + Math.random());
+    if (map[key]) return false;
+    map[key] = 1;
+    return true;
+  });
+}
+
+function getVisibleRepairReserve(c) {
+  return getKnownDamages(c).reduce(function(sum, d) {
+    return sum + Math.round((d.repairCost || 0) * ((d.severity || 0) / 50));
+  }, 0);
+}
+
+function getHiddenRepairReserve(c) {
+  return getHiddenDamages(c).reduce(function(sum, d) {
+    return sum + Math.round((d.repairCost || 0) * ((d.severity || 0) / 50));
+  }, 0);
+}
+
+function getRiskLabel(c) {
+  if (getUnknownDamageCount(c) > 0 && !c.pr) return 'SCAM RISK';
+  if (estimateMarketProfit(c) > 120000) return 'TOP DEAL';
+  return 'CLEAN';
+}
+
+function getRiskClass(c) {
+  var label = getRiskLabel(c);
+  if (label === 'TOP DEAL') return 'top';
+  if (label === 'SCAM RISK') return 'risk';
+  return 'clean';
+}
+
+function genHiddenDamages(cond, visibleList) {
+  var lvl = hiddenLevel();
+  var visibleKeys = {};
+  (visibleList || []).forEach(function(d) { visibleKeys[d.key] = 1; });
+  var result = [];
+  var condFactor = (100 - cond) / 100;
+  var maxHidden = Math.min(3, Math.max(0, Math.floor(condFactor * 3 + (lvl - 1) * 0.5)));
+  var shuffled = DAMAGE_PARTS.slice().sort(function() { return Math.random() - 0.5; });
+  for (var i = 0; i < shuffled.length && result.length < maxHidden; i++) {
+    var p = shuffled[i];
+    if (visibleKeys[p.key]) continue;
+    var chance = clamp((p.chance * 0.55) + condFactor * 0.12 + lvl * 0.02, 0, 0.45);
+    if (Math.random() < chance) {
+      result.push({
+        key: p.key,
+        part: p.name,
+        zone: p.zone,
+        icon: p.icon,
+        desc: 'Скрытый дефект: ' + p.desc.toLowerCase(),
+        repairCost: p.repairCost,
+        severity: clamp(rnd(18 + Math.round(condFactor * 18), 50 + Math.round(condFactor * 35) + lvl * 4), 8, 95)
+      });
+    }
+  }
+  return result;
+}
+
+function adjustRep(delta) {
+  G.rep = clamp((G.rep || 0) + delta, -100, 999);
+  return G.rep;
+}
+
+function getRepDeltaFromSale(profit, c, hadComplaint) {
+  var delta = 0;
+  if (profit >= 150000) delta += 6;
+  else if (profit >= 70000) delta += 4;
+  else if (profit >= 20000) delta += 2;
+  else if (profit >= 0) delta += 1;
+  else if (profit <= -80000) delta -= 4;
+  else if (profit < 0) delta -= 2;
+  if ((c.cond || 0) >= 85) delta += 1;
+  if (hadComplaint) delta -= 8;
+  return delta;
+}
+
 function estimateMarketProfit(c) {
   var fake = {
     rv: c.rv,
@@ -52,11 +145,14 @@ function estimateMarketProfit(c) {
     vm: c.vm || 1,
     hp: c.hp,
     pr: c.pr,
-    damages: c.damages || [],
+    damages: getKnownDamages(c),
     pp: c.ap
   };
   var sp = calcSP(fake);
-  return sp - Math.round(sp * 0.05) - (c.ap || 0);
+  var visibleReserve = getVisibleRepairReserve(c);
+  var hiddenReserve = getHiddenRepairReserve(c);
+  var hiddenRiskReserve = c.pr ? hiddenReserve : Math.round(hiddenReserve * 0.55);
+  return sp - Math.round(sp * 0.05) - (c.ap || 0) - visibleReserve - hiddenRiskReserve;
 }
 
 // Генерация повреждений
@@ -89,21 +185,25 @@ function genDamages(cond) {
 // Генерация машины для рынка
 function genCarSim() {
   var lvl = hiddenLevel();
+  var repTier = getRepTier(G.rep || 0);
   var t = pick(cars);
   var yr = rnd(2005, 2024);
   var age = 2024 - yr;
   var mi = age * rnd(8000, 22000 + 2000 * (lvl - 1));
-  var cond = clamp(100 - age * rnd(2, 6 + lvl - 1), 20, 100);
+  var cond = clamp(100 - age * rnd(2, 6 + lvl - 1) + repTier.condBonus + rnd(-3, 4), 18, 100);
   var rv = rnd(t.min, t.max);
   rv = Math.round(rv * (1 - age * 0.025) * (cond / 100));
-  var ap = Math.round(rv * rnd(75 + 3 * (lvl - 1), 115 + 6 * (lvl - 1)) / 100);
-  
+  if (Math.random() < repTier.rareChance) {
+    rv = Math.round(rv * rnd(1.08, 1.24));
+    cond = clamp(cond + rnd(3, 9), 18, 100);
+  }
+  var riskFactor = Math.max(0.75, 1 + repTier.riskBias + rnd(-0.05, 0.06));
+  var ap = Math.round(rv * rnd(75 + 3 * (lvl - 1), 115 + 6 * (lvl - 1)) / 100 * repTier.buyMult * riskFactor);
   return {
     id: Date.now() + '-' + Math.random().toString(36).substr(2,9),
     n: t.n, e: t.e, yr: yr, mi: mi, cond: cond, ap: ap, rv: rv,
     cm: pick(comments), sn: pick(names), sa: pick(avas),
-    hp: Math.random() < clamp(0.18 + 0.06 * (lvl - 1), 0, 0.50),
-    pr: false, vm: 1, srv: {}, damages: []
+    hp: false, pr: false, vm: 1, srv: {}, damages: [], hiddenDamages: []
   };
 }
 
@@ -126,9 +226,21 @@ function renderSim() {
 }
 
 function updG() {
+  var tier = getRepTier(G.rep || 0);
   document.getElementById('sim-money').textContent = fmt(G.m) + '₽';
   document.getElementById('sim-day').textContent = G.day;
   document.getElementById('sim-rep').textContent = G.rep || 0;
+  var rankEl = document.getElementById('sim-rep-rank');
+  if (rankEl) rankEl.textContent = tier.label;
+  var mt = document.getElementById('market-tier');
+  var mb = document.getElementById('market-bias');
+  var mr = document.getElementById('market-risk');
+  if (mt) mt.textContent = 'Ранг: ' + tier.label;
+  if (mb) mb.textContent = 'Рынок: ' + tier.market;
+  if (mr) mr.textContent = 'Риск: ' + (tier.key === 'shady' ? 'Высокий' : tier.key === 'elite' ? 'Ниже нормы' : 'Средний');
+  if (mt) mt.className = 'mi-chip ' + (tier.key === 'elite' || tier.key === 'dealer' ? 'good' : tier.key === 'shady' ? 'risk' : '');
+  if (mb) mb.className = 'mi-chip ' + (tier.key === 'elite' ? 'good' : 'warn');
+  if (mr) mr.className = 'mi-chip ' + (tier.key === 'shady' ? 'risk' : tier.key === 'elite' ? 'good' : 'warn');
 }
 
 function renderMkt() {
@@ -145,11 +257,14 @@ function renderMkt() {
     var profit = estimateMarketProfit(c);
     var rarity = getRarityLabel(c);
     var condClass = getConditionClass(c.cond);
-    var badge2 = profit > 70000 ? 'TOP DEAL' : (c.hp ? 'SCAM RISK' : 'CLEAN');
-    return '<div class="scar neo-card">' +
+    var badge2 = getRiskLabel(c);
+    var visibleCount = getKnownDamages(c).length;
+    var hiddenCount = getUnknownDamageCount(c);
+    var repTier = getRepTier(G.rep || 0);
+    return '<div class="scar neo-card ' + (rarity === 'ELITE' ? 'kit-elite' : '') + '">' +
       '<div class="scar-media">' +
         '<div class="scar-badge">' + rarity + '</div>' +
-        '<div class="scar-badge secondary ' + (badge2 === 'TOP' ? 'top' : 'risk') + '">' + badge2 + '</div>' +
+        '<div class="scar-badge secondary ' + getRiskClass(c) + '">' + badge2 + '</div>' +
         getCarImageTag(c, 'car-img') +
       '</div>' +
       '<div class="scar-body">' +
@@ -161,12 +276,14 @@ function renderMkt() {
           '<div class="sstat"><div class="sstat-lbl">Потенциал</div><div class="sstat-val ' + getProfitClass(profit) + '">' + (profit >= 0 ? '+' : '') + fmt(profit) + '</div></div>' +
         '</div>' +
         '<div class="scar-condition"><div class="scar-condition-fill ' + condClass + '" style="width:' + c.cond + '%"></div></div>' +
+        '<div class="scar-meta-line"><span>Видимых дефектов: <strong>' + visibleCount + '</strong></span><span>Теневой риск: <strong>' + (hiddenCount ? 'есть' : 'низкий') + '</strong></span></div>' +
         '<div class="scar-tags">' +
           '<span class="scar-tag">Продавец: ' + c.sn + '</span>' +
-          '<span class="scar-tag ' + condClass + '">' + (c.hp ? 'Скрытый риск' : 'Открытая продажа') + '</span>' +
+          '<span class="scar-tag ' + condClass + '">' + (repTier.key === 'elite' ? 'Ранг открыл доступ' : 'Рыночный лот') + '</span>' +
+          (hiddenCount ? '<span class="scar-tag bad">Нужна диагностика</span>' : '<span class="scar-tag good">Проверяется быстро</span>') +
         '</div>' +
         '<div class="scar-price-row"><div class="scar-price">' + fmt(c.ap) + ' ₽</div>' +
-        '<button class="scar-btn buy" onclick="buyG(\'' + c.id + '\')"' + (G.m < c.ap ? ' disabled' : '') + '>🛒 Купить</button></div>' +
+        '<button class="scar-btn buy" onclick="buyG('' + c.id + '')"' + (G.m < c.ap ? ' disabled' : '') + '>🛒 Купить</button></div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -188,7 +305,7 @@ function renderGar() {
     var sp = calcSP(c);
     var fee = Math.round(sp * 0.05);
     var pr = sp - fee - (c.pp || 0);
-    var dmgCount = c.damages ? c.damages.length : 0;
+    var dmgCount = getKnownDamages(c).length + getUnknownDamageCount(c);
     var condClass = getConditionClass(c.cond);
     var status = dmgCount ? ('IN REPAIR') : 'READY';
 
@@ -208,6 +325,7 @@ function renderGar() {
         '<div class="scar-tags">' +
           '<span class="scar-tag">Услуг: ' + (c.srv ? Object.keys(c.srv).filter(function(k){ return c.srv[k]; }).length : 0) + '</span>' +
           '<span class="scar-tag ' + (dmgCount ? 'bad' : 'good') + '">' + (dmgCount ? 'Нужен ремонт' : 'Готова к продаже') + '</span>' +
+          (getUnknownDamageCount(c) ? '<span class="scar-tag warn">Есть скрытые риски</span>' : '') +
         '</div>' +
         '<div class="scar-price-row"><div class="scar-price">' + fmt(sp) + ' ₽</div>' +
         '<button class="scar-btn sell" onclick="event.stopPropagation();sellG(\'' + c.id + '\')">💰 Продать</button></div>' +
@@ -218,6 +336,7 @@ function renderGar() {
   var countEl = document.getElementById('garage-count');
   var valueEl = document.getElementById('garage-value');
   var profitEl = document.getElementById('garage-profit');
+  var repEl = document.getElementById('garage-rep');
   if (countEl && valueEl && profitEl) {
     var totalValue = G.gar.reduce(function(sum, car) { return sum + calcSP(car); }, 0);
     var totalProfit = G.gar.reduce(function(sum, car) {
@@ -228,6 +347,7 @@ function renderGar() {
     countEl.textContent = String(G.gar.length);
     valueEl.textContent = fmt(totalValue) + '₽';
     profitEl.textContent = (totalProfit >= 0 ? '+' : '') + fmt(totalProfit) + '₽';
+    if (repEl) repEl.textContent = getRepTier(G.rep || 0).label;
   }
 
   updateSrvSelect();
@@ -336,7 +456,9 @@ function calcSP(c) {
   
   if (c.hp && !c.pr && Math.random() < 0.35) p *= 0.70;
   
-  if (c.damages && c.damages.length) {
+  var knownDamages = getKnownDamages(c);
+  var hiddenCount = getUnknownDamageCount(c);
+  if (knownDamages && knownDamages.length) {
     var totalSev = c.damages.reduce(function(s, d) { return s + d.severity; }, 0);
     var avgSev = totalSev / c.damages.length;
     p *= (1 - Math.min(0.40, (avgSev / 100) * 0.6 + c.damages.length * 0.03));
@@ -358,25 +480,27 @@ function buyG(id) {
 
   var c = G.mkt.find(function(x) { return String(x.id) === String(id); });
   if (!c || G.m < c.ap) return toast('Недостаточно денег!', 'error');
-  
+
   G.m -= c.ap;
   c.pp = c.ap;
   c.boughtDay = G.day;
-  c.damages = genDamages(c.cond);
+  var visible = genDamages(c.cond);
+  c.damages = visible.slice(0, Math.max(0, Math.ceil(visible.length * 0.65)));
+  c.hiddenDamages = genHiddenDamages(c.cond, c.damages);
+  c.hp = c.hiddenDamages.length > 0;
   c.vm = c.vm || 1;
   c.srv = c.srv || {};
   G.gar.push(c);
   G.mkt = G.mkt.filter(function(x) { return String(x.id) !== String(id); });
   G.buys++;
   addXP('торговля', 25);
-  
-  var dmgCount = c.damages.length;
-  if (dmgCount > 0) {
-    toast(c.e + ' Куплено! (🩹 ' + dmgCount + ' повр.)', 'success');
-  } else {
-    toast(c.e + ' Куплено! ✨', 'success');
-  }
-  
+
+  var msg = c.e + ' Куплено!';
+  if (c.hiddenDamages.length) msg += ' ⚠️ скрытые риски: ' + c.hiddenDamages.length;
+  else if (c.damages.length) msg += ' 🩹 дефекты: ' + c.damages.length;
+  else msg += ' ✨';
+
+  toast(msg, 'success');
   vibrate(30);
   renderSim();
 }
@@ -386,31 +510,42 @@ function sellG(id) {
 
   var c = G.gar.find(function(x) { return String(x.id) === String(id); });
   if (!c) return;
-  
+
   var sp = calcSP(c);
   var fee = Math.round(sp * 0.05);
   var payout = sp - fee;
+  var hiddenPenalty = 0;
+  var hadComplaint = false;
+  if (getUnknownDamageCount(c) > 0) {
+    hiddenPenalty = Math.round(getHiddenRepairReserve(c) * 0.60);
+    payout = Math.max(0, payout - hiddenPenalty);
+    hadComplaint = true;
+  }
   var profit = payout - (c.pp || 0);
-  
+
   G.m += payout;
   G.gar = G.gar.filter(function(x) { return String(x.id) !== String(id); });
-  
-  // Убираем выбор если продали выбранную машину
+
   if (String(selectedSrvCarId) === String(id)) {
     selectedSrvCarId = '';
     localStorage.removeItem('selectedSrvCarId');
   }
-  
+
+  var repDelta = getRepDeltaFromSale(profit, c, hadComplaint);
+  adjustRep(repDelta);
+
   GS.totalDeals++;
   GS.totalProfit += profit;
   saveGlobalStats();
   checkAchievements(unlockAch);
   addXP('торговля', 35);
-  
+
   var msg = (profit >= 0 ? '+' : '') + fmt(profit) + ' ₽ (ком. ' + fmt(fee) + ' ₽)';
-  toast(profit >= 0 ? '💰 ' + msg : '📉 ' + msg, profit >= 0 ? 'success' : 'error');
-  vibrate(profit >= 0 ? 40 : 80);
-  
+  if (hadComplaint) msg += ' • скрытые дефекты: -' + fmt(hiddenPenalty) + ' ₽';
+  if (repDelta) msg += ' • реп ' + (repDelta > 0 ? '+' : '') + repDelta;
+  toast(profit >= 0 ? '💰 ' + msg : '📉 ' + msg, hadComplaint ? 'error' : (profit >= 0 ? 'success' : 'error'));
+  vibrate(hadComplaint ? 90 : (profit >= 0 ? 40 : 80));
+
   renderSim();
 }
 
@@ -442,7 +577,15 @@ function applySrv(sid) {
     c.mi = Math.max(1000, c.mi + s.e.m); 
     addXP('хитрость', 60); 
   }
-  if (s.e.r) c.pr = true;
+  if (s.e.r) {
+    c.pr = true;
+    if (getHiddenDamages(c).length) {
+      c.damages = mergeUniqueDamages(c.damages, c.hiddenDamages);
+      c.hiddenDamages = [];
+      c.hp = false;
+      toast('💻 Диагностика вскрыла скрытые дефекты', 'success');
+    }
+  }
   if (s.e.vm) {
     c.vm = c.vm || 1;
     c.vm *= s.e.vm;
@@ -557,7 +700,8 @@ export function refreshMarket() {
   }
 
   // Новые машины на рынке
-  var carCount = rnd(5, 8);
+  var tier = getRepTier(G.rep || 0);
+  var carCount = rnd(5, 8) + (tier.key === 'dealer' ? 1 : tier.key === 'elite' ? 2 : 0);
   G.mkt = [];
   for (var j = 0; j < carCount; j++) {
     var c = genCarSim();
@@ -620,12 +764,14 @@ function renderCarModal() {
   var profit = sp - fee - (c.pp || 0);
   var srvList = c.srv ? Object.keys(c.srv).filter(function(k) { return c.srv[k]; }) : [];
   var dmgHtml = '';
-  if (c.damages && c.damages.length) {
+  var knownDamages = getKnownDamages(c);
+  var hiddenCount = getUnknownDamageCount(c);
+  if (knownDamages && knownDamages.length) {
     dmgHtml = '<div class="modal-sec">' +
-      '<div class="modal-sec-title">🩹 Повреждения (' + c.damages.length + ')</div>' +
-      '<div class="car-damage-visual">' + renderCarVisual(c.damages) + '</div>' +
+      '<div class="modal-sec-title">🩹 Повреждения (' + knownDamages.length + ')</div>' +
+      '<div class="car-damage-visual">' + renderCarVisual(knownDamages) + '</div>' +
       '<div class="dmg-list">' +
-        c.damages.map(function(d) {
+        knownDamages.map(function(d) {
           return '<div class="dmg">' +
             '<div class="dmg-header">' +
               '<span class="dmg-icon">' + d.icon + '</span>' +
@@ -642,7 +788,7 @@ function renderCarModal() {
   } else {
     dmgHtml = '<div class="modal-sec">' +
       '<div class="modal-sec-title">✨ Состояние</div>' +
-      '<div class="car-damage-visual">' + renderCarVisual([]) + '</div>' +
+      '<div class="car-damage-visual">' + renderCarVisual(knownDamages) + '</div>' +
       '<div class="no-damage">Повреждений не обнаружено!</div>' +
     '</div>';
   }
@@ -661,11 +807,13 @@ function renderCarModal() {
       '<div class="tags">' +
         '<div class="tag ' + (c.pr ? 'ok' : 'warn') + '">' + (c.pr ? '💻 Диагностика OK' : '💻 Без диагностики') + '</div>' +
         '<div class="tag ' + (c.hp ? 'warn' : 'ok') + '">' + (c.hp ? '⚠️ Скрытые проблемы' : '✅ Чистая история') + '</div>' +
+        '<div class="tag rep-inline">😎 ' + getRepTier(G.rep || 0).label + '</div>' +
         '<div class="tag">🧾 Услуг: ' + srvList.length + '</div>' +
         '<div class="tag">📈 VM: x' + (c.vm || 1).toFixed(2) + '</div>' +
       '</div>' +
     '</div>' +
-    dmgHtml;
+    dmgHtml +
+    (hiddenCount ? '<div class="hidden-note">⚠️ Без диагностики у этой машины остаётся ' + hiddenCount + ' скрыт(ых) дефект(ов). Продажа без проверки может ударить по прибыли и репутации.</div>' : '');
 }
 
 // Визуализация машины с повреждениями

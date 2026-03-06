@@ -1,9 +1,29 @@
 {
   "latest": 4,
   "patches": [
-    { "id": 1, "name": "init-meta-and-ui", "type": "state", "run": "patch_init_meta_ui_v1" },
-    { "id": 2, "name": "normalize-services", "type": "state", "run": "patch_normalize_services_v2" },
-    { "id": 3, "name": "fix-garage-flags", "type": "state", "run": "patch_fix_garage_flags_v3" },
-    { "id": 4, "name": "stable-update-defaults", "type": "state", "run": "patch_stable_update_defaults_v4" }
+    {
+      "id": 1,
+      "name": "init-meta-ui",
+      "type": "state",
+      "run": "patch_init_meta_ui_v1"
+    },
+    {
+      "id": 2,
+      "name": "normalize-services",
+      "type": "state",
+      "run": "patch_normalize_services_v2"
+    },
+    {
+      "id": 3,
+      "name": "fix-garage-flags",
+      "type": "state",
+      "run": "patch_fix_garage_flags_v3"
+    },
+    {
+      "id": 4,
+      "name": "stable-update-defaults",
+      "type": "state",
+      "run": "patch_stable_update_defaults_v4"
+    }
   ]
 }
