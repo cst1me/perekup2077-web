@@ -1,4 +1,4 @@
-// PEREKUP 2077 — Main v3.1.1 stable-max
+// PEREKUP 2077 — Main v3.1.3
 import { toast } from './core/utils.js';
 import { loadGlobalStats, updateGlobalStatsUI, APP_VERSION, BUILD_VERSION, COMMIT_HASH } from './core/state.js';
 import { saveSnapshot, consumePendingRestore } from './core/snapshots.js';
@@ -19,55 +19,62 @@ function closeModalBtn() {
 async function boot() {
   console.log('🚗 ПЕРЕКУП 2077 v' + APP_VERSION + ' build ' + BUILD_VERSION);
 
+  // КРИТИЧНО: Сначала регистрируем ВСЕ функции в window
+  Object.assign(window, {
+    startSixty: startSixty,
+    startSim: startSim,
+    toMenu: toMenu,
+    showAbout: showAbout,
+    repairGame: repairGame,
+    openRepairModal: openRepairModal,
+    closeRepairModal: closeRepairModal,
+    startRound: startRound,
+    buy: buy,
+    haggle: haggle,
+    skip: skip,
+    refreshMarket: refreshMarket,
+    sellFromModal: sellFromModal,
+    setSrvFromModal: setSrvFromModal,
+    closeCarModal: closeCarModal,
+    closeModalBtn: closeModalBtn,
+    showPatchNotes: showPatchNotes,
+    checkForUpdate: checkForUpdate,
+    applyUpdate: applyUpdate,
+    resetAppCachesAndReload: resetAppCachesAndReload,
+    toggleEmergencyMode: toggleEmergencyMode
+  });
+
   try {
     loadGlobalStats();
-    await consumePendingRestore();
-    await autoRollbackOnBoot();
-    var patchCount = await applyGamePatches();
     updateGlobalStatsUI();
     wireTabs();
-    initUpdater();
+  } catch(e) { console.error('[BOOT] Basic:', e); }
 
+  try {
+    await consumePendingRestore();
+    await autoRollbackOnBoot();
+  } catch(e) { console.error('[BOOT] Restore:', e); }
+
+  try {
+    var patchCount = await applyGamePatches();
+    if (patchCount > 0) toast('🧩 Патчей: ' + patchCount, 'success');
+  } catch(e) { console.error('[BOOT] Patches:', e); }
+
+  try {
+    initUpdater();
+    await saveSnapshot('boot');
+  } catch(e) { console.error('[BOOT] Updater:', e); }
+
+  try {
     var el = document.getElementById('build-info');
     if (el) {
       var c = (COMMIT_HASH && COMMIT_HASH !== '__COMMIT__') ? COMMIT_HASH.slice(0, 7) : 'local';
       el.textContent = 'v' + APP_VERSION + ' • build ' + BUILD_VERSION + ' • ' + c;
     }
-
-    await saveSnapshot('boot');
-    if (patchCount > 0) toast('🧩 Применено патчей: ' + patchCount, 'success');
-  } catch(e) {
-    console.error('[BOOT]', e);
-  }
-
-  Object.assign(window, {
-    startSixty, startSim, toMenu, showAbout,
-    repairGame, openRepairModal, closeRepairModal,
-    startRound, buy, haggle, skip,
-    refreshMarket, sellFromModal, setSrvFromModal, closeCarModal, closeModalBtn,
-    showPatchNotes, checkForUpdate, applyUpdate,
-    resetAppCachesAndReload, toggleEmergencyMode,
-    closeTopModal: function() {
-      try {
-        if (window.isRepairModalOpen && window.isRepairModalOpen()) { window.closeRepairModal(); return true; }
-        var cm = document.getElementById('car-modal');
-        if (cm && cm.classList.contains('active') && typeof window.closeModalBtn === 'function') { window.closeModalBtn(); return true; }
-      } catch(e) {}
-      return false;
-    }
-  });
+  } catch(e) {}
 
   window.addEventListener('error', function(e) {
     console.error('[ERR]', e.error || e.message || e);
-    toast('Ошибка — F12 для деталей', 'error');
-  });
-
-  document.addEventListener('visibilitychange', function() {
-    try {
-      if (!document.hidden && typeof window.checkForUpdate === 'function') {
-        setTimeout(function() { window.checkForUpdate(false); }, 250);
-      }
-    } catch (e) {}
   });
 
   console.log('🚗 Ready!');
