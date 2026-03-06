@@ -1,5 +1,5 @@
 // PEREKUP 2077 — Service Worker v3.1.8
-var CACHE_NAME = 'perekup-v401';
+var CACHE_NAME = 'perekup-v404';
 var CACHE_PREFIX = 'perekup-';
 
 self.addEventListener('install', function(event) {

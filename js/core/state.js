@@ -1,8 +1,8 @@
 // PEREKUP 2077 — State v4.0.0
 import { fmt, getTodayKey } from './utils.js';
 
-export var APP_VERSION = '4.0.3';
-export var BUILD_VERSION = '403';
+export var APP_VERSION = '4.0.4';
+export var BUILD_VERSION = 404;
 export var COMMIT_HASH = '__COMMIT__';
 
 function defaultMeta() {

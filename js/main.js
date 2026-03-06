@@ -1,4 +1,4 @@
-// PEREKUP 2077 — Main v4.0.3 GARAGE PATCH
+// PEREKUP 2077 — Main v4.0.4 ONCLICK FIX
 import { toast } from './core/utils.js';
 import { loadGlobalStats, updateGlobalStatsUI, APP_VERSION, BUILD_VERSION, COMMIT_HASH } from './core/state.js';
 import { preloadConfigs } from './core/config.js';
@@ -17,20 +17,29 @@ function closeModalBtn() {
   if (m) m.classList.remove('active');
 }
 
-async function boot() {
-  console.log('🚗 ПЕРЕКУП 2077 v' + APP_VERSION + ' build ' + BUILD_VERSION);
+function softResetSession() {
+  try {
+    localStorage.removeItem('selectedSrvCarId');
+    sessionStorage.clear();
+    location.reload();
+  } catch (e) {
+    console.error('[SOFT RESET]', e);
+    location.reload();
+  }
+}
 
-  // ===== КРИТИЧНО: Регистрируем ВСЕ функции СРАЗУ в начале =====
+// Перезаписываем fallback-стабы полными версиями
+function exposeGlobals() {
   Object.assign(window, {
     startSixty: startSixty,
     startSim: startSim,
+    startRound: startRound,
     toMenu: toMenu,
     showAbout: showAbout,
     repairGame: repairGame,
     openRepairModal: openRepairModal,
     closeRepairModal: closeRepairModal,
     isRepairModalOpen: isRepairModalOpen,
-    startRound: startRound,
     buy: buy,
     haggle: haggle,
     skip: skip,
@@ -44,57 +53,68 @@ async function boot() {
     checkForUpdate: checkForUpdate,
     applyUpdate: applyUpdate,
     resetAppCachesAndReload: resetAppCachesAndReload,
-    toggleEmergencyMode: toggleEmergencyMode
+    toggleEmergencyMode: toggleEmergencyMode,
+    softResetSession: softResetSession
   });
+  console.log('[MAIN] ✅ Globals exposed (overwriting fallbacks)');
+}
 
-  // Базовая инициализация (синхронная)
+async function boot() {
+  console.log('🚗 ПЕРЕКУП 2077 v' + APP_VERSION + ' build ' + BUILD_VERSION);
+
+  // Сразу регистрируем полные версии функций
+  exposeGlobals();
+
   try {
     loadGlobalStats();
     updateGlobalStatsUI();
+  } catch (e) {
+    console.error('[BOOT] stats init:', e);
+  }
+
+  try {
     wireTabs();
-  } catch(e) {
-    console.error('[BOOT] Basic init:', e);
+  } catch (e) {
+    console.error('[BOOT] wireTabs:', e);
   }
 
   try {
     await preloadConfigs();
-  } catch(e) {
+  } catch (e) {
     console.warn('[BOOT] preloadConfigs:', e);
   }
 
-  // Async операции - каждая в своём try-catch
   try {
     await consumePendingRestore();
-  } catch(e) {
+  } catch (e) {
     console.warn('[BOOT] consumePendingRestore:', e);
   }
 
   try {
     await autoRollbackOnBoot();
-  } catch(e) {
+  } catch (e) {
     console.warn('[BOOT] autoRollbackOnBoot:', e);
   }
 
   try {
     var patchCount = await applyGamePatches();
     if (patchCount > 0) toast('🧩 Патчей: ' + patchCount, 'success');
-  } catch(e) {
+  } catch (e) {
     console.warn('[BOOT] applyGamePatches:', e);
   }
 
   try {
     initUpdater();
-  } catch(e) {
+  } catch (e) {
     console.warn('[BOOT] initUpdater:', e);
   }
 
   try {
     await saveSnapshot('boot');
-  } catch(e) {
+  } catch (e) {
     console.warn('[BOOT] saveSnapshot:', e);
   }
 
-  // Build info
   try {
     var c = (COMMIT_HASH && COMMIT_HASH !== '__COMMIT__') ? COMMIT_HASH.slice(0, 7) : 'local';
     var buildLine = 'v' + APP_VERSION + ' • build ' + BUILD_VERSION + ' • ' + c;
@@ -108,9 +128,10 @@ async function boot() {
     if (aboutVer) aboutVer.textContent = APP_VERSION;
     var aboutBuild = document.getElementById('pn-build');
     if (aboutBuild) aboutBuild.textContent = BUILD_VERSION;
-  } catch(e) {}
+  } catch (e) {
+    console.warn('[BOOT] build info:', e);
+  }
 
-  // Global error handler
   window.addEventListener('error', function(e) {
     console.error('[ERR]', e.error || e.message || e);
   });
