@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0515" />
+  <title>ПЕРЕКУП 2077 — Оффлайн</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="screen menu active" style="display:flex;">
+    <div class="menu-logo">📡</div>
+    <h1 class="menu-title">ОФФЛАЙН<br/>РЕЖИМ</h1>
+    <p class="menu-sub">ПЕРЕКУП 2077</p>
+    <p class="menu-subline">СЕТЬ ВРЕМЕННО НЕДОСТУПНА</p>
+    <div class="about-card" style="max-width:520px;width:100%;margin-top:18px;">
+      <div class="about-sec-title">Что можно сделать</div>
+      <div class="about-text" style="line-height:1.5;">
+        Игра попробует использовать локальные данные и кеш. Если это первая загрузка без сети, вернись в игру позже или открой сайт ещё раз после подключения интернета.
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+        <button class="mbtn mbtn-main" onclick="location.href='./index.html?retry='+Date.now()">🔄 Повторить</button>
+        <button class="mbtn mbtn-sec" onclick="location.reload()">📶 Обновить сеть</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
