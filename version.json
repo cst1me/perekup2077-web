@@ -1,0 +1,17 @@
+{
+  "version": 308,
+  "build": 308,
+  "versionName": "3.0.8",
+  "forceUpdateBelow": 300,
+  "zipUrl": "https://cst1me.github.io/perekup2077-web/game_v308.zip",
+  "sha256": "1dd5ba0905537c5abc0e4f4c65ab347b727e8ce569fd4086746f3a7f4dc5b31d",
+  "apkUrl": "https://cst1me.itch.io/perekup2077",
+  "changelog": [
+    "🔥 Принудительное обновление для v2.x",
+    "✅ Исправлена кнопка Починить игру",
+    "✅ Фикс достижений выходящих за экран",
+    "🚗 25 видов повреждений машин",
+    "🔧 20+ услуг по категориям",
+    "📱 Улучшена работа в APK"
+  ]
+}
