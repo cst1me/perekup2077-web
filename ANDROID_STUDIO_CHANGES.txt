@@ -1,0 +1,63 @@
+// ============================================
+// PEREKUP 2077 — MainActivity.kt ИЗМЕНЕНИЯ
+// ============================================
+
+// 1. ДОБАВЬ в onCreate после webView.settings:
+
+// Force no-cache для гарантии свежести
+webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
+
+// 2. ДОБАВЬ DownloadListener для скачивания APK:
+
+webView.setDownloadListener { url, userAgent, contentDisposition, mimetype, contentLength ->
+    try {
+        val request = DownloadManager.Request(Uri.parse(url))
+        request.setMimeType(mimetype)
+        request.addRequestHeader("User-Agent", userAgent)
+        request.setDescription("Downloading update...")
+        request.setTitle("PEREKUP2077_update.apk")
+        request.allowScanningByMediaScanner()
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "perekup2077_update.apk")
+        
+        val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+        dm.enqueue(request)
+        Toast.makeText(this, "⬇️ Скачивание началось...", Toast.LENGTH_LONG).show()
+    } catch (e: Exception) {
+        // Fallback: открыть в браузере
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
+}
+
+// 3. ИЗМЕНИ URL манифеста на version.json:
+
+private val updateManifestUrl = "https://raw.githubusercontent.com/cst1me/perekup2077-web/main/version.json"
+
+// 4. ИЗМЕНИ extractInt чтобы читать "version" ИЛИ "build":
+
+private fun extractVersion(json: String): Int? {
+    // Пробуем "version", потом "build"
+    val r1 = Regex(""""version"\s*:\s*(\d+)""")
+    val r2 = Regex(""""build"\s*:\s*(\d+)""")
+    return r1.find(json)?.groupValues?.get(1)?.toIntOrNull()
+        ?: r2.find(json)?.groupValues?.get(1)?.toIntOrNull()
+}
+
+// 5. ВАЖНО: Убедись что в checkAndUpdateInBackground():
+//    - Читается version.json (не manifest.json)
+//    - Используется extractVersion() вместо extractInt("version")
+
+// ============================================
+// ПОЛНЫЙ ПУТЬ ОБНОВЛЕНИЯ:
+// 
+// 1. APK стартует → загружает локальный index.html из assets
+// 2. index.html сразу проверяет version.json на GitHub
+// 3. Если version > local_build И local_build < forceUpdateBelow:
+//    → Показывает БЛОКИРУЮЩИЙ модал "КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ"
+// 4. Пользователь нажимает "ОБНОВИТЬ":
+//    → nukeAllCaches() удаляет все кеши и SW
+//    → location.reload() перезагружает страницу
+// 5. MainActivity тем временем в фоне проверяет version.json
+//    и скачивает game_v307.zip если нужно
+// 6. При следующем запуске грузится уже обновлённая версия
+// ============================================

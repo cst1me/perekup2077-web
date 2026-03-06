@@ -1,0 +1,14 @@
+{
+  "version": 307,
+  "build": 307,
+  "versionName": "3.0.7",
+  "forceUpdateBelow": 306,
+  "apkUrl": "https://github.com/cst1me/perekup2077-web/releases/download/v3.0.7/perekup2077.apk",
+  "changelog": [
+    "🔥 Принудительное обновление для v2.x",
+    "✅ Исправлена кнопка Починить игру",
+    "✅ Фикс битого manifest.json",
+    "📱 Улучшена работа в APK",
+    "🧹 Автоочистка старого кеша"
+  ]
+}
