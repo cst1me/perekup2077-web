@@ -1,20 +1,15 @@
 {
-  "version": 311,
-  "build": 311,
-  "versionName": "3.1.1",
-  "channel": "stable-max",
-  "min_supported": 308,
-  "forceUpdateBelow": 308,
-  "patch_api": "./patches/patches.json",
-  "apk_url": "",
-  "web_url": "./",
-  "supportOffline": true,
+  "version": 319,
+  "build": 319,
+  "versionName": "3.1.9",
+  "forceUpdateBelow": 300,
+  "channel": "stable",
   "changelog": [
-    "Maximum stability update",
-    "Update check now falls back to embedded defaults and local cache",
-    "Service Worker uses safer network-first logic for HTML and manifests",
-    "Offline fallback page added for PWA and Android WebView",
-    "Update screen no longer reports fake connection loss when local mode is available"
-  ],
-  "notes": "Stable-max release focused on GitHub Pages, WebView cache safety, and offline resilience"
+    "🧠 UX Mindgame: психологические сигналы рынка",
+    "🎯 Чипы-подсказки: шум, манера продавца, состояние рынка",
+    "🎭 Ложные сигналы у мутных продавцов",
+    "🔧 Критический фикс загрузки кнопок",
+    "🖼️ Webp картинки машин с fallback",
+    "💾 Shadow Saves с IndexedDB"
+  ]
 }

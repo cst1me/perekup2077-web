@@ -1,8 +1,8 @@
 // PEREKUP 2077 — State v3.0.8
 import { fmt, getTodayKey } from './utils.js';
 
-export var APP_VERSION = '3.1.1';
-export var BUILD_VERSION = '311';
+export var APP_VERSION = '3.1.9';
+export var BUILD_VERSION = '319';
 export var COMMIT_HASH = '__COMMIT__';
 
 export var GS = { totalDeals: 0, totalProfit: 0, bestScore: 0, achievements: {} };
@@ -41,6 +41,8 @@ try { S.best = parseInt(localStorage.getItem('pb'), 10) || 0; } catch(e) { S.bes
 
 export var G = {
   m: 500000, rep: 0, day: 1, gar: [], mkt: [],
+  contracts: { day: 1, items: [] }, marketPulse: null,
+  economy: null, rivals: null,
   sk: { торговля: { l: 1, x: 0 }, механика: { l: 1, x: 0 }, хитрость: { l: 1, x: 0 }, вождение: { l: 1, x: 0 } },
   taxi: null, buys: 0,
   mods: { srvDiscount: 0, apMult: 1, taxiMult: 1, upkeepMult: 1, sellMult: 1, bodyDiscount: 0 },
@@ -50,6 +52,8 @@ export var G = {
 export function defaultG() {
   return {
     m: 500000, rep: 0, day: 1, gar: [], mkt: [],
+    contracts: { day: 1, items: [] }, marketPulse: null,
+    economy: null, rivals: null,
     sk: { торговля: { l: 1, x: 0 }, механика: { l: 1, x: 0 }, хитрость: { l: 1, x: 0 }, вождение: { l: 1, x: 0 } },
     taxi: null, buys: 0,
     mods: { srvDiscount: 0, bodyDiscount: 0, apMult: 1, taxiMult: 1, upkeepMult: 1, sellMult: 1 },
@@ -81,6 +85,9 @@ export function validateG(obj) {
     if (!Number.isInteger(obj.day) || obj.day < 1 || obj.day > 1000000) return { ok: false, err: 'G.day' };
     if (!Number.isInteger(obj.rep) || obj.rep < -100000 || obj.rep > 1000000) return { ok: false, err: 'G.rep' };
     if (!Array.isArray(obj.gar) || !Array.isArray(obj.mkt)) return { ok: false, err: 'G.gar/G.mkt' };
+    if (obj.contracts && typeof obj.contracts !== 'object') return { ok: false, err: 'G.contracts' };
+    if (obj.economy && typeof obj.economy !== 'object') return { ok: false, err: 'G.economy' };
+    if (obj.rivals && typeof obj.rivals !== 'object') return { ok: false, err: 'G.rivals' };
     if (!obj.sk || typeof obj.sk !== 'object') return { ok: false, err: 'G.sk' };
     ['торговля', 'механика', 'хитрость', 'вождение'].forEach(function(k) {
       if (!obj.sk[k] || typeof obj.sk[k] !== 'object') throw new Error('G.sk.' + k);
@@ -117,6 +124,16 @@ export function resetSKeepBuys() {
 
 export function totalBuys() { return (S.buys || 0) + (G.buys || 0); }
 export function hiddenLevel() { return Math.min(4, 1 + Math.floor(totalBuys() / 10)); }
+
+
+export function getRepTier(rep) {
+  rep = Number(rep) || 0;
+  if (rep >= 160) return { key: 'elite', label: 'ЭЛИТА', market: 'Премиум поток', condBonus: 12, buyMult: 0.94, rareChance: 0.18, riskBias: -0.06 };
+  if (rep >= 80) return { key: 'dealer', label: 'ДИЛЕР', market: 'Сильные лоты', condBonus: 8, buyMult: 0.97, rareChance: 0.10, riskBias: -0.03 };
+  if (rep >= 25) return { key: 'street', label: 'УЛИЦА', market: 'Уверенный поток', condBonus: 4, buyMult: 0.99, rareChance: 0.06, riskBias: -0.01 };
+  if (rep <= -20) return { key: 'shady', label: 'ТЕНЕВОЙ', market: 'Серый риск', condBonus: -8, buyMult: 0.96, rareChance: 0.03, riskBias: 0.08 };
+  return { key: 'rookie', label: 'НОВИЧОК', market: 'Стандарт', condBonus: 0, buyMult: 1.0, rareChance: 0.04, riskBias: 0.00 };
+}
 
 export function loadTaxiDaily() {
   try {

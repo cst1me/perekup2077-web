@@ -1,23 +1,16 @@
 {
   "name": "ПЕРЕКУП 2077",
   "short_name": "ПЕРЕКУП",
-  "version": "3.0.9",
-  "build": 309,
+  "version": "3.1.9",
+  "build": 319,
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0d0515",
   "theme_color": "#0d0515",
   "icons": [
-    {
-      "src": "./icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "./icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    {"src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
   ]
 }

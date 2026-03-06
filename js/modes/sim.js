@@ -1,7 +1,7 @@
 // PEREKUP 2077 — Simulator mode v3.0.5
 import { fmt, rnd, pick, clamp, toast, vibrate, enterFullscreen } from '../core/utils.js';
 import { cars, comments, names, avas, srvs, locs, DAILY_EVENTS, TAXI_DAILY_LIMIT, DAMAGE_PARTS, SERVICE_CATS } from '../core/data.js';
-import { G, GS, saveGlobalStats, loadTaxiDaily, taxiUseOne, hiddenLevel, checkAchievements, showAchievement } from '../core/state.js';
+import { G, GS, saveGlobalStats, loadTaxiDaily, taxiUseOne, hiddenLevel, checkAchievements, showAchievement, getRepTier } from '../core/state.js';
 import { saveSnapshot } from '../core/snapshots.js';
 import { show } from '../ui/screens.js';
 
@@ -18,14 +18,14 @@ function slugifyCarName(name) {
 }
 
 function getCarImageSrc(c) {
-  return './assets/cards/' + slugifyCarName(c && c.n) + '.svg';
+  return './assets/cars/' + slugifyCarName(c && c.n) + '.webp';
 }
 
 function getCarImageTag(c, cls) {
   var src = getCarImageSrc(c);
   var alt = (c && c.n ? c.n : 'Автомобиль').replace(/"/g, '&quot;');
   cls = cls || 'car-img';
-  return '<img class="' + cls + '" src="' + src + '" alt="' + alt + '" loading="lazy" onerror="this.onerror=null;this.src=\'./assets/cards/default.svg\';">';
+  return '<img class="' + cls + '" src="' + src + '" alt="' + alt + '" loading="lazy" onerror="this.onerror=null;this.src=\'./assets/cars/default.webp\';">';
 }
 
 function getConditionClass(cond) {
@@ -45,6 +45,342 @@ function getProfitClass(v) {
   return v >= 0 ? 'pos' : 'neg';
 }
 
+
+var MARKET_PULSES = [
+  { key: 'steady', title: 'Спокойный поток', desc: 'Рынок ровный, без резких перекосов.', buyBias: 1.00, condBias: 0, rareBonus: 0.00 },
+  { key: 'buyers', title: 'Охота покупателей', desc: 'Покупатели активны, хорошие машины уходят быстро.', buyBias: 1.05, condBias: 4, rareBonus: 0.03 },
+  { key: 'risky', title: 'Серый день', desc: 'На рынке больше сомнительных лотов и скрытых дефектов.', buyBias: 0.95, condBias: -6, rareBonus: 0.00 },
+  { key: 'premium', title: 'Премиум-окно', desc: 'На витрину выходят машины классом выше обычного.', buyBias: 1.08, condBias: 6, rareBonus: 0.06 }
+];
+
+var CONTRACT_TEMPLATES = [
+  { key: 'buy_any', title: 'Разогрев рынка', desc: 'Купи 1 машину сегодня', goal: 1, rewardMoney: 18000, rewardRep: 2 },
+  { key: 'sell_profit', title: 'Чистый профит', desc: 'Продай машину с прибылью не ниже 60 000 ₽', goal: 1, rewardMoney: 32000, rewardRep: 3, targetProfit: 60000 },
+  { key: 'diagnose', title: 'Глубокая диагностика', desc: 'Проведи 1 диагностику в сервисе', goal: 1, rewardMoney: 14000, rewardRep: 2 },
+  { key: 'sell_clean', title: 'Чистая выдача', desc: 'Продай машину без жалоб клиента', goal: 1, rewardMoney: 26000, rewardRep: 3 },
+  { key: 'buy_rare', title: 'Охота за редкостью', desc: 'Купи rare/elite лот', goal: 1, rewardMoney: 42000, rewardRep: 4 },
+  { key: 'sell_high', title: 'Большая касса', desc: 'Продай машину дороже 900 000 ₽', goal: 1, rewardMoney: 50000, rewardRep: 4, targetPrice: 900000 }
+];
+
+var ECONOMY_SCENARIOS = [
+  { key: 'balanced', title: 'Баланс', desc: 'Спрос ровный, рынок без резких перекосов.', focus: 'mass', buyBias: 1.00, sellBias: 1.00, demand: { mass: 1.00, comfort: 1.00, business: 1.00, premium: 1.00, collector: 1.00 } },
+  { key: 'premium_rush', title: 'Премиум-спрос', desc: 'Покупатели охотятся за дорогими сегментами и статусом.', focus: 'premium', buyBias: 1.03, sellBias: 1.08, demand: { mass: 0.96, comfort: 1.00, business: 1.08, premium: 1.16, collector: 1.10 } },
+  { key: 'fleet_week', title: 'Корпоративная неделя', desc: 'Лучше идут массовые и комфортные машины для парков и служб.', focus: 'mass', buyBias: 1.01, sellBias: 1.06, demand: { mass: 1.12, comfort: 1.08, business: 0.98, premium: 0.92, collector: 0.88 } },
+  { key: 'cold_market', title: 'Холодный рынок', desc: 'Покупатели осторожны, приходится ловить цену и экономить оборот.', focus: 'comfort', buyBias: 0.96, sellBias: 0.95, demand: { mass: 1.02, comfort: 1.04, business: 0.94, premium: 0.88, collector: 0.84 } },
+  { key: 'collector_hype', title: 'Коллекционный хайп', desc: 'Редкие и легендарные лоты улетают быстрее обычного.', focus: 'collector', buyBias: 1.05, sellBias: 1.11, demand: { mass: 0.94, comfort: 0.98, business: 1.02, premium: 1.08, collector: 1.22 } }
+];
+
+var RIVAL_PROFILES = [
+  { key: 'quiet', title: 'Тихо', desc: 'Никто не давит на рынок.', pressure: 0, stealChance: 0.00, hagglePenalty: 0.00 },
+  { key: 'watching', title: 'На радарах', desc: 'Мелкие перекупы отслеживают сильные лоты.', pressure: 1, stealChance: 0.10, hagglePenalty: 0.03 },
+  { key: 'active', title: 'Жёсткая конкуренция', desc: 'Конкуренты снимают лучшие машины и давят на сделки.', pressure: 2, stealChance: 0.18, hagglePenalty: 0.05 },
+  { key: 'predators', title: 'Хищники в игре', desc: 'Сильные перекупы охотятся за редкими и выгодными лотами.', pressure: 3, stealChance: 0.26, hagglePenalty: 0.08 }
+];
+
+function getCarSegment(c) {
+  var rv = Number(c && c.rv || 0);
+  if (rv >= 2500000) return 'collector';
+  if (rv >= 1500000) return 'premium';
+  if (rv >= 900000) return 'business';
+  if (rv >= 450000) return 'comfort';
+  return 'mass';
+}
+
+function ensureEconomySystems() {
+  if (!G.economy || typeof G.economy !== 'object') G.economy = ECONOMY_SCENARIOS[0];
+  if (!G.rivals || typeof G.rivals !== 'object') G.rivals = { day: G.day || 1, profile: RIVAL_PROFILES[0], sweepCount: 0 };
+}
+
+function rollEconomyState() {
+  var repTier = getRepTier(G.rep || 0);
+  var pool = ECONOMY_SCENARIOS.slice();
+  if (repTier.key === 'elite') pool.push(ECONOMY_SCENARIOS[1], ECONOMY_SCENARIOS[4]);
+  if (repTier.key === 'shady') pool.push(ECONOMY_SCENARIOS[3]);
+  G.economy = pool[rnd(0, pool.length - 1)];
+}
+
+function rollRivalPressure() {
+  var repTier = getRepTier(G.rep || 0);
+  var pool = RIVAL_PROFILES.slice();
+  if (repTier.key === 'elite') pool.push(RIVAL_PROFILES[2], RIVAL_PROFILES[3]);
+  if (repTier.key === 'rookie') pool.unshift(RIVAL_PROFILES[0]);
+  var profile = pool[rnd(0, pool.length - 1)];
+  G.rivals = { day: G.day || 1, profile: profile, sweepCount: 0 };
+}
+
+function getDemandMultForSegment(segment) {
+  segment = segment || 'mass';
+  var eco = G.economy || ECONOMY_SCENARIOS[0];
+  var demand = eco.demand || {};
+  return Number(demand[segment]) || 1;
+}
+
+function getEconomySellBias() {
+  var eco = G.economy || ECONOMY_SCENARIOS[0];
+  return Number(eco.sellBias) || 1;
+}
+
+function getRivalProfile() {
+  ensureEconomySystems();
+  return G.rivals && G.rivals.profile ? G.rivals.profile : RIVAL_PROFILES[0];
+}
+
+function rivalSweepMarket() {
+  ensureEconomySystems();
+  var profile = getRivalProfile();
+  var pool = (G.mkt || []).filter(function(c) {
+    return c && (c.rareLevel === 'rare' || c.rareLevel === 'elite' || estimateMarketProfit(c) > 90000);
+  });
+  var maxSweep = profile.pressure || 0;
+  if (!pool.length || !maxSweep) {
+    G.rivals.sweepCount = 0;
+    return;
+  }
+  var sweepCount = 0;
+  pool.sort(function(a, b) { return estimateMarketProfit(b) - estimateMarketProfit(a); });
+  for (var i = 0; i < pool.length && sweepCount < maxSweep; i++) {
+    if (Math.random() < profile.stealChance) {
+      var id = pool[i].id;
+      G.mkt = G.mkt.filter(function(x) { return String(x.id) !== String(id); });
+      sweepCount++;
+    }
+  }
+  G.rivals.sweepCount = sweepCount;
+  if (sweepCount > 0) {
+    toast('⚠️ Конкуренты сняли с рынка лотов: ' + sweepCount, 'error');
+  }
+}
+
+function haggleForCar(id) {
+  var c = G.mkt.find(function(x) { return String(x.id) === String(id); });
+  if (!c) return;
+  if (c.haggled) return toast('Ты уже торговался по этому лоту.', 'error');
+
+  saveSnapshot('sim:before_haggle');
+
+  var profile = getRivalProfile();
+  var tradeSkill = (G.sk && G.sk.торговля ? G.sk.торговля.l : 1);
+  var cunningSkill = (G.sk && G.sk.хитрость ? G.sk.хитрость.l : 1);
+  var repTier = getRepTier(G.rep || 0);
+  var pressurePenalty = profile.hagglePenalty || 0;
+  var successChance = clamp(0.46 + tradeSkill * 0.03 + cunningSkill * 0.02 + (repTier.key === 'dealer' ? 0.04 : 0) - pressurePenalty, 0.18, 0.86);
+
+  c.haggled = true;
+
+  if (Math.random() <= successChance) {
+    var discount = clamp(0.03 + tradeSkill * 0.004 + cunningSkill * 0.003 + Math.random() * 0.03, 0.03, 0.16);
+    var oldPrice = c.ap;
+    c.ap = Math.max(1000, Math.round(c.ap * (1 - discount)));
+    c.dealFlag = 'haggle_win';
+    updateContracts('buy_any', {});
+    toast('🤝 Торг удался: -' + fmt(oldPrice - c.ap) + ' ₽', 'success');
+  } else {
+    var failRoll = Math.random();
+    if (failRoll < 0.45 && G.mkt.length > 1) {
+      G.mkt = G.mkt.filter(function(x) { return String(x.id) !== String(id); });
+      if (G.rivals) G.rivals.sweepCount = (G.rivals.sweepCount || 0) + 1;
+      toast('💨 Продавец ушёл к конкуренту', 'error');
+    } else {
+      var markup = clamp(0.02 + (profile.pressure || 0) * 0.01 + Math.random() * 0.02, 0.02, 0.08);
+      c.ap = Math.round(c.ap * (1 + markup));
+      c.dealFlag = 'haggle_fail';
+      toast('📈 Торг провалился: цена выросла', 'error');
+    }
+  }
+
+  renderSim();
+}
+
+function ensureMetaSystems() {
+  if (!G.contracts || typeof G.contracts !== 'object') G.contracts = { day: G.day || 1, items: [] };
+  if (!Array.isArray(G.contracts.items)) G.contracts.items = [];
+  if (!G.marketPulse || typeof G.marketPulse !== 'object') G.marketPulse = MARKET_PULSES[0];
+  ensureEconomySystems();
+}
+
+function cloneContractTemplate(t, idx) {
+  return {
+    id: 'day' + G.day + '_' + t.key + '_' + idx,
+    key: t.key,
+    title: t.title,
+    desc: t.desc,
+    goal: t.goal || 1,
+    progress: 0,
+    done: false,
+    rewardMoney: t.rewardMoney || 0,
+    rewardRep: t.rewardRep || 0,
+    targetProfit: t.targetProfit || 0,
+    targetPrice: t.targetPrice || 0
+  };
+}
+
+function rollMarketPulse() {
+  var repTier = getRepTier(G.rep || 0);
+  var pool = MARKET_PULSES.slice();
+  if (repTier.key === 'elite') pool.push(MARKET_PULSES[3]);
+  if (repTier.key === 'shady') pool.push(MARKET_PULSES[2]);
+  G.marketPulse = pool[rnd(0, pool.length - 1)];
+}
+
+function rollDailyContracts() {
+  var pool = CONTRACT_TEMPLATES.slice().sort(function(){ return Math.random() - 0.5; }).slice(0, 3);
+  G.contracts = { day: G.day || 1, items: pool.map(cloneContractTemplate) };
+}
+
+function ensureDailyContracts() {
+  ensureMetaSystems();
+  if ((G.contracts.day || 0) !== (G.day || 1) || !G.contracts.items.length) {
+    rollDailyContracts();
+  }
+  if (!G.marketPulse || !G.marketPulse.key) {
+    rollMarketPulse();
+  }
+  if (!G.economy || !G.economy.key) {
+    rollEconomyState();
+  }
+  if (!G.rivals || !G.rivals.profile || (G.rivals.day || 0) !== (G.day || 1)) {
+    rollRivalPressure();
+  }
+}
+
+function rewardContract(item) {
+  if (!item || item.done) return;
+  item.done = true;
+  if (item.rewardMoney) G.m += item.rewardMoney;
+  if (item.rewardRep) adjustRep(item.rewardRep);
+  toast('📜 Контракт закрыт: ' + item.title + ' • +' + fmt(item.rewardMoney || 0) + ' ₽', 'success');
+}
+
+function updateContracts(type, payload) {
+  ensureDailyContracts();
+  payload = payload || {};
+  (G.contracts.items || []).forEach(function(item) {
+    if (!item || item.done) return;
+    var inc = 0;
+    if (item.key === 'buy_any' && type === 'buy') inc = 1;
+    if (item.key === 'buy_rare' && type === 'buy' && payload.isRare) inc = 1;
+    if (item.key === 'sell_profit' && type === 'sell' && payload.profit >= (item.targetProfit || 0)) inc = 1;
+    if (item.key === 'sell_clean' && type === 'sell' && !payload.hadComplaint) inc = 1;
+    if (item.key === 'sell_high' && type === 'sell' && payload.sellPrice >= (item.targetPrice || 0)) inc = 1;
+    if (item.key === 'diagnose' && type === 'diagnose') inc = 1;
+    if (!inc) return;
+    item.progress = Math.min(item.goal || 1, (item.progress || 0) + inc);
+    if (item.progress >= (item.goal || 1)) rewardContract(item);
+  });
+}
+
+function renderContracts() {
+  ensureDailyContracts();
+  var el = document.getElementById('contract-list');
+  var pulse = document.getElementById('pulse-desc');
+  if (pulse && G.marketPulse) pulse.textContent = G.marketPulse.desc;
+  if (!el) return;
+  el.innerHTML = (G.contracts.items || []).map(function(item) {
+    var pct = Math.max(6, Math.min(100, Math.round(((item.progress || 0) / Math.max(1, item.goal || 1)) * 100)));
+    return '<div class="contract-item ' + (item.done ? 'done' : '') + '">' +
+      '<div class="contract-row"><div><div class="contract-name">' + item.title + '</div><div class="contract-desc">' + item.desc + '</div></div>' +
+      '<div class="contract-reward">+' + fmt(item.rewardMoney || 0) + ' ₽</div></div>' +
+      '<div class="contract-progress"><div class="contract-progress-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="contract-foot"><span>' + (item.done ? 'Выполнено' : ('Прогресс: ' + (item.progress || 0) + '/' + (item.goal || 1))) + '</span><span>😎 +' + (item.rewardRep || 0) + '</span></div>' +
+    '</div>';
+  }).join('');
+}
+
+
+function getKnownDamages(c) {
+  return Array.isArray(c && c.damages) ? c.damages : [];
+}
+
+function getHiddenDamages(c) {
+  return Array.isArray(c && c.hiddenDamages) ? c.hiddenDamages : [];
+}
+
+function getUnknownDamageCount(c) {
+  return c && !c.pr ? getHiddenDamages(c).length : 0;
+}
+
+function mergeUniqueDamages(listA, listB) {
+  var map = {};
+  return (listA || []).concat(listB || []).filter(function(d) {
+    var key = d && d.key ? d.key : ('i_' + Math.random());
+    if (map[key]) return false;
+    map[key] = 1;
+    return true;
+  });
+}
+
+function getVisibleRepairReserve(c) {
+  return getKnownDamages(c).reduce(function(sum, d) {
+    return sum + Math.round((d.repairCost || 0) * ((d.severity || 0) / 50));
+  }, 0);
+}
+
+function getHiddenRepairReserve(c) {
+  return getHiddenDamages(c).reduce(function(sum, d) {
+    return sum + Math.round((d.repairCost || 0) * ((d.severity || 0) / 50));
+  }, 0);
+}
+
+function getRiskLabel(c) {
+  if (getUnknownDamageCount(c) > 0 && !c.pr) return 'SCAM RISK';
+  if (estimateMarketProfit(c) > 120000) return 'TOP DEAL';
+  return 'CLEAN';
+}
+
+function getRiskClass(c) {
+  var label = getRiskLabel(c);
+  if (label === 'TOP DEAL') return 'top';
+  if (label === 'SCAM RISK') return 'risk';
+  return 'clean';
+}
+
+function genHiddenDamages(cond, visibleList) {
+  var lvl = hiddenLevel();
+  var visibleKeys = {};
+  (visibleList || []).forEach(function(d) { visibleKeys[d.key] = 1; });
+  var result = [];
+  var condFactor = (100 - cond) / 100;
+  var maxHidden = Math.min(3, Math.max(0, Math.floor(condFactor * 3 + (lvl - 1) * 0.5)));
+  var shuffled = DAMAGE_PARTS.slice().sort(function() { return Math.random() - 0.5; });
+  for (var i = 0; i < shuffled.length && result.length < maxHidden; i++) {
+    var p = shuffled[i];
+    if (visibleKeys[p.key]) continue;
+    var chance = clamp((p.chance * 0.55) + condFactor * 0.12 + lvl * 0.02, 0, 0.45);
+    if (Math.random() < chance) {
+      result.push({
+        key: p.key,
+        part: p.name,
+        zone: p.zone,
+        icon: p.icon,
+        desc: 'Скрытый дефект: ' + p.desc.toLowerCase(),
+        repairCost: p.repairCost,
+        severity: clamp(rnd(18 + Math.round(condFactor * 18), 50 + Math.round(condFactor * 35) + lvl * 4), 8, 95)
+      });
+    } else {
+      updateContracts('diagnose', { foundHidden: false });
+    }
+  }
+  return result;
+}
+
+function adjustRep(delta) {
+  G.rep = clamp((G.rep || 0) + delta, -100, 999);
+  return G.rep;
+}
+
+function getRepDeltaFromSale(profit, c, hadComplaint) {
+  var delta = 0;
+  if (profit >= 150000) delta += 6;
+  else if (profit >= 70000) delta += 4;
+  else if (profit >= 20000) delta += 2;
+  else if (profit >= 0) delta += 1;
+  else if (profit <= -80000) delta -= 4;
+  else if (profit < 0) delta -= 2;
+  if ((c.cond || 0) >= 85) delta += 1;
+  if (hadComplaint) delta -= 8;
+  return delta;
+}
+
 function estimateMarketProfit(c) {
   var fake = {
     rv: c.rv,
@@ -52,11 +388,14 @@ function estimateMarketProfit(c) {
     vm: c.vm || 1,
     hp: c.hp,
     pr: c.pr,
-    damages: c.damages || [],
+    damages: getKnownDamages(c),
     pp: c.ap
   };
   var sp = calcSP(fake);
-  return sp - Math.round(sp * 0.05) - (c.ap || 0);
+  var visibleReserve = getVisibleRepairReserve(c);
+  var hiddenReserve = getHiddenRepairReserve(c);
+  var hiddenRiskReserve = c.pr ? hiddenReserve : Math.round(hiddenReserve * 0.55);
+  return sp - Math.round(sp * 0.05) - (c.ap || 0) - visibleReserve - hiddenRiskReserve;
 }
 
 // Генерация повреждений
@@ -88,22 +427,36 @@ function genDamages(cond) {
 
 // Генерация машины для рынка
 function genCarSim() {
+  ensureDailyContracts();
   var lvl = hiddenLevel();
+  var repTier = getRepTier(G.rep || 0);
   var t = pick(cars);
   var yr = rnd(2005, 2024);
   var age = 2024 - yr;
   var mi = age * rnd(8000, 22000 + 2000 * (lvl - 1));
-  var cond = clamp(100 - age * rnd(2, 6 + lvl - 1), 20, 100);
+  var pulse = G.marketPulse || MARKET_PULSES[0];
+  var econ = G.economy || ECONOMY_SCENARIOS[0];
+  var baseSegment = getCarSegment({ rv: (t.min + t.max) / 2 });
+  var demandMult = getDemandMultForSegment(baseSegment);
+  var focusBonus = econ.focus === baseSegment ? rnd(1.03, 1.09) : 1;
+  var cond = clamp(100 - age * rnd(2, 6 + lvl - 1) + repTier.condBonus + (pulse.condBias || 0) + rnd(-3, 4), 18, 100);
   var rv = rnd(t.min, t.max);
-  rv = Math.round(rv * (1 - age * 0.025) * (cond / 100));
-  var ap = Math.round(rv * rnd(75 + 3 * (lvl - 1), 115 + 6 * (lvl - 1)) / 100);
-  
+  rv = Math.round(rv * (1 - age * 0.025) * (cond / 100) * demandMult * focusBonus);
+  if (Math.random() < repTier.rareChance) {
+    rv = Math.round(rv * rnd(1.08, 1.24));
+    cond = clamp(cond + rnd(3, 9), 18, 100);
+  }
+  var riskFactor = Math.max(0.75, 1 + repTier.riskBias + rnd(-0.05, 0.06));
+  var ap = Math.round(rv * rnd(75 + 3 * (lvl - 1), 115 + 6 * (lvl - 1)) / 100 * repTier.buyMult * riskFactor * ((pulse && pulse.buyBias) || 1));
+  var rareLevel = 'normal';
+  if (rv >= 2500000 || Math.random() < (((pulse && pulse.rareBonus) || 0) * 0.45)) rareLevel = 'elite';
+  else if (rv >= 900000 || Math.random() < (repTier.rareChance + ((pulse && pulse.rareBonus) || 0))) rareLevel = 'rare';
   return {
     id: Date.now() + '-' + Math.random().toString(36).substr(2,9),
     n: t.n, e: t.e, yr: yr, mi: mi, cond: cond, ap: ap, rv: rv,
     cm: pick(comments), sn: pick(names), sa: pick(avas),
-    hp: Math.random() < clamp(0.18 + 0.06 * (lvl - 1), 0, 0.50),
-    pr: false, vm: 1, srv: {}, damages: []
+    seg: getCarSegment({ rv: rv }), rareLevel: rareLevel,
+    hp: false, pr: false, vm: 1, srv: {}, damages: [], hiddenDamages: []
   };
 }
 
@@ -111,13 +464,16 @@ function taxiLeft() { return Math.max(0, TAXI_DAILY_LIMIT - loadTaxiDaily()); }
 
 export function startSim() {
   enterFullscreen();
+  ensureDailyContracts();
   show('sim-screen');
   if (!G.mkt.length) G.mkt = [0,0,0,0,0,0].map(function() { return genCarSim(); });
   renderSim();
 }
 
 function renderSim() { 
+  ensureDailyContracts();
   updG(); 
+  renderContracts();
   renderMkt(); 
   renderGar(); 
   renderSrv(); 
@@ -126,9 +482,44 @@ function renderSim() {
 }
 
 function updG() {
+  var tier = getRepTier(G.rep || 0);
+  ensureDailyContracts();
   document.getElementById('sim-money').textContent = fmt(G.m) + '₽';
   document.getElementById('sim-day').textContent = G.day;
   document.getElementById('sim-rep').textContent = G.rep || 0;
+  var rankEl = document.getElementById('sim-rep-rank');
+  if (rankEl) rankEl.textContent = tier.label;
+  var mt = document.getElementById('market-tier');
+  var mb = document.getElementById('market-bias');
+  var mr = document.getElementById('market-risk');
+  if (mt) mt.textContent = 'Ранг: ' + tier.label;
+  if (mb) mb.textContent = 'Рынок: ' + tier.market;
+  if (mr) mr.textContent = 'Риск: ' + (tier.key === 'shady' ? 'Высокий' : tier.key === 'elite' ? 'Ниже нормы' : 'Средний');
+  if (mt) mt.className = 'mi-chip ' + (tier.key === 'elite' || tier.key === 'dealer' ? 'good' : tier.key === 'shady' ? 'risk' : '');
+  if (mb) mb.className = 'mi-chip ' + (tier.key === 'elite' ? 'good' : 'warn');
+  if (mr) mr.className = 'mi-chip ' + (tier.key === 'shady' ? 'risk' : tier.key === 'elite' ? 'good' : 'warn');
+
+  var eco = G.economy || ECONOMY_SCENARIOS[0];
+  var ecoMain = document.getElementById('economy-main');
+  var ecoSub = document.getElementById('economy-sub');
+  var ecoFocus = document.getElementById('economy-focus');
+  var ecoSell = document.getElementById('economy-sell');
+  if (ecoMain) ecoMain.textContent = eco.title;
+  if (ecoSub) ecoSub.textContent = eco.desc;
+  if (ecoFocus) ecoFocus.textContent = 'Фокус: ' + String(eco.focus || 'mass').toUpperCase();
+  if (ecoSell) ecoSell.textContent = 'Продажа x' + (Number(eco.sellBias || 1).toFixed(2));
+
+  var rivals = getRivalProfile();
+  var rivalMain = document.getElementById('rival-main');
+  var rivalSub = document.getElementById('rival-sub');
+  var rivalPressure = document.getElementById('rival-pressure');
+  var rivalSweep = document.getElementById('rival-sweep');
+  var rivalBoard = document.getElementById('rival-board');
+  if (rivalMain) rivalMain.textContent = rivals.title;
+  if (rivalSub) rivalSub.textContent = rivals.desc;
+  if (rivalPressure) rivalPressure.textContent = 'Давление: ' + ['низкое','среднее','высокое','критичное'][rivals.pressure || 0];
+  if (rivalSweep) rivalSweep.textContent = 'Снято лотов: ' + ((G.rivals && G.rivals.sweepCount) || 0);
+  if (rivalBoard) rivalBoard.className = 'rival-board' + ((rivals.pressure || 0) >= 2 ? ' hot' : '');
 }
 
 function renderMkt() {
@@ -141,32 +532,54 @@ function renderMkt() {
     eb.classList.remove('active');
   }
 
+  document.getElementById('pulse-desc').textContent = (G.marketPulse && G.marketPulse.desc) || 'Спокойный поток, стандартные лоты.';
+
   document.getElementById('market-cars').innerHTML = G.mkt.map(function(c) {
     var profit = estimateMarketProfit(c);
-    var rarity = getRarityLabel(c);
+    var rarity = c.rareLevel === 'elite' ? 'LEGEND' : (c.rareLevel === 'rare' ? 'RARE' : getRarityLabel(c));
     var condClass = getConditionClass(c.cond);
-    var badge2 = profit > 70000 ? 'TOP DEAL' : (c.hp ? 'SCAM RISK' : 'CLEAN');
-    return '<div class="scar neo-card">' +
+    var badge2 = getRiskLabel(c);
+    var visibleCount = getKnownDamages(c).length;
+    var hiddenCount = getUnknownDamageCount(c);
+    var repTier = getRepTier(G.rep || 0);
+    var demandMult = getDemandMultForSegment(c.seg || getCarSegment(c));
+    var rivalFlag = !!c.rivalPressure;
+    var rivalBadge = rivalFlag ? '<div class="scar-badge secondary pressure">RIVAL</div>' : '';
+    var rivalNote = rivalFlag ? '<div class="scar-rival-note">⚠️ Конкуренты уже смотрят этот лот. Торг становится рискованнее.</div>' : '';
+    var priceHint = demandMult > 1.06 ? 'Сегмент в спросе' : (demandMult < 0.96 ? 'Сегмент остывает' : 'Спрос ровный');
+
+    return '<div class="scar neo-card ' + ((rarity === 'ELITE' || rarity === 'LEGEND') ? 'kit-elite' : '') + '">' +
       '<div class="scar-media">' +
         '<div class="scar-badge">' + rarity + '</div>' +
-        '<div class="scar-badge secondary ' + (badge2 === 'TOP' ? 'top' : 'risk') + '">' + badge2 + '</div>' +
+        '<div class="scar-badge secondary ' + getRiskClass(c) + '">' + badge2 + '</div>' +
+        rivalBadge +
         getCarImageTag(c, 'car-img') +
       '</div>' +
       '<div class="scar-body">' +
         '<div class="scar-name">' + c.n + '</div>' +
-        '<div class="scar-year">' + c.yr + ' • ' + fmt(c.mi) + ' км</div>' +
+        '<div class="scar-year">' + c.yr + ' • ' + fmt(c.mi) + ' км • ' + String(c.seg || getCarSegment(c)).toUpperCase() + '</div>' +
         '<div class="scar-comment">“' + c.cm + '”</div>' +
         '<div class="scar-stats">' +
           '<div class="sstat"><div class="sstat-lbl">Состояние</div><div class="sstat-val ' + condClass + '">' + c.cond + '%</div></div>' +
           '<div class="sstat"><div class="sstat-lbl">Потенциал</div><div class="sstat-val ' + getProfitClass(profit) + '">' + (profit >= 0 ? '+' : '') + fmt(profit) + '</div></div>' +
         '</div>' +
         '<div class="scar-condition"><div class="scar-condition-fill ' + condClass + '" style="width:' + c.cond + '%"></div></div>' +
+        '<div class="scar-meta-line"><span>Видимых дефектов: <strong>' + visibleCount + '</strong></span><span>Теневой риск: <strong>' + (hiddenCount ? 'есть' : 'низкий') + '</strong></span></div>' +
         '<div class="scar-tags">' +
           '<span class="scar-tag">Продавец: ' + c.sn + '</span>' +
-          '<span class="scar-tag ' + condClass + '">' + (c.hp ? 'Скрытый риск' : 'Открытая продажа') + '</span>' +
+          '<span class="scar-tag ' + condClass + '">' + (repTier.key === 'elite' ? 'Ранг открыл доступ' : 'Рыночный лот') + '</span>' +
+          '<span class="scar-tag ' + (demandMult > 1 ? 'good' : 'warn') + '">' + priceHint + '</span>' +
+          (c.rareLevel === 'elite' ? '<span class="scar-tag top">Легендарный лот</span>' : (c.rareLevel === 'rare' ? '<span class="scar-tag good">Редкий лот</span>' : '')) +
+          (hiddenCount ? '<span class="scar-tag bad">Нужна диагностика</span>' : '<span class="scar-tag good">Проверяется быстро</span>') +
+          (c.dealFlag === 'haggle_win' ? '<span class="scar-tag top">Выгодный торг</span>' : '') +
+          (c.dealFlag === 'haggle_fail' ? '<span class="scar-tag bad">Торг сорван</span>' : '') +
         '</div>' +
-        '<div class="scar-price-row"><div class="scar-price">' + fmt(c.ap) + ' ₽</div>' +
-        '<button class="scar-btn buy" onclick="buyG(\'' + c.id + '\')"' + (G.m < c.ap ? ' disabled' : '') + '>🛒 Купить</button></div>' +
+        rivalNote +
+        '<div class="scar-price-row"><div class="scar-price-stack"><div class="scar-price">' + fmt(c.ap) + ' ₽</div><div class="scar-price-hint">' + priceHint + '</div></div>' +
+        '<div class="scar-cta-row">' +
+          '<button class="scar-btn alt" onclick="haggleForCar(\'' + c.id + '\')"' + (c.haggled ? ' disabled' : '') + '>🤝 Торг</button>' +
+          '<button class="scar-btn buy" onclick="buyG(\'' + c.id + '\')"' + (G.m < c.ap ? ' disabled' : '') + '>🛒 Купить</button>' +
+        '</div></div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -188,7 +601,7 @@ function renderGar() {
     var sp = calcSP(c);
     var fee = Math.round(sp * 0.05);
     var pr = sp - fee - (c.pp || 0);
-    var dmgCount = c.damages ? c.damages.length : 0;
+    var dmgCount = getKnownDamages(c).length + getUnknownDamageCount(c);
     var condClass = getConditionClass(c.cond);
     var status = dmgCount ? ('IN REPAIR') : 'READY';
 
@@ -208,6 +621,7 @@ function renderGar() {
         '<div class="scar-tags">' +
           '<span class="scar-tag">Услуг: ' + (c.srv ? Object.keys(c.srv).filter(function(k){ return c.srv[k]; }).length : 0) + '</span>' +
           '<span class="scar-tag ' + (dmgCount ? 'bad' : 'good') + '">' + (dmgCount ? 'Нужен ремонт' : 'Готова к продаже') + '</span>' +
+          (getUnknownDamageCount(c) ? '<span class="scar-tag warn">Есть скрытые риски</span>' : '') +
         '</div>' +
         '<div class="scar-price-row"><div class="scar-price">' + fmt(sp) + ' ₽</div>' +
         '<button class="scar-btn sell" onclick="event.stopPropagation();sellG(\'' + c.id + '\')">💰 Продать</button></div>' +
@@ -218,6 +632,7 @@ function renderGar() {
   var countEl = document.getElementById('garage-count');
   var valueEl = document.getElementById('garage-value');
   var profitEl = document.getElementById('garage-profit');
+  var repEl = document.getElementById('garage-rep');
   if (countEl && valueEl && profitEl) {
     var totalValue = G.gar.reduce(function(sum, car) { return sum + calcSP(car); }, 0);
     var totalProfit = G.gar.reduce(function(sum, car) {
@@ -228,6 +643,7 @@ function renderGar() {
     countEl.textContent = String(G.gar.length);
     valueEl.textContent = fmt(totalValue) + '₽';
     profitEl.textContent = (totalProfit >= 0 ? '+' : '') + fmt(totalProfit) + '₽';
+    if (repEl) repEl.textContent = getRepTier(G.rep || 0).label;
   }
 
   updateSrvSelect();
@@ -336,7 +752,9 @@ function calcSP(c) {
   
   if (c.hp && !c.pr && Math.random() < 0.35) p *= 0.70;
   
-  if (c.damages && c.damages.length) {
+  var knownDamages = getKnownDamages(c);
+  var hiddenCount = getUnknownDamageCount(c);
+  if (knownDamages && knownDamages.length) {
     var totalSev = c.damages.reduce(function(s, d) { return s + d.severity; }, 0);
     var avgSev = totalSev / c.damages.length;
     p *= (1 - Math.min(0.40, (avgSev / 100) * 0.6 + c.damages.length * 0.03));
@@ -358,25 +776,31 @@ function buyG(id) {
 
   var c = G.mkt.find(function(x) { return String(x.id) === String(id); });
   if (!c || G.m < c.ap) return toast('Недостаточно денег!', 'error');
-  
+
   G.m -= c.ap;
   c.pp = c.ap;
   c.boughtDay = G.day;
-  c.damages = genDamages(c.cond);
+  var visible = genDamages(c.cond);
+  c.damages = visible.slice(0, Math.max(0, Math.ceil(visible.length * 0.65)));
+  c.hiddenDamages = genHiddenDamages(c.cond, c.damages);
+  c.hp = c.hiddenDamages.length > 0;
   c.vm = c.vm || 1;
   c.srv = c.srv || {};
+  c.haggled = false;
+  c.dealFlag = '';
+  c.rivalPressure = false;
   G.gar.push(c);
   G.mkt = G.mkt.filter(function(x) { return String(x.id) !== String(id); });
   G.buys++;
+  updateContracts('buy', { isRare: c.rareLevel === 'rare' || c.rareLevel === 'elite', rareLevel: c.rareLevel, segment: c.seg || getCarSegment(c) });
   addXP('торговля', 25);
-  
-  var dmgCount = c.damages.length;
-  if (dmgCount > 0) {
-    toast(c.e + ' Куплено! (🩹 ' + dmgCount + ' повр.)', 'success');
-  } else {
-    toast(c.e + ' Куплено! ✨', 'success');
-  }
-  
+
+  var msg = c.e + ' Куплено!';
+  if (c.hiddenDamages.length) msg += ' ⚠️ скрытые риски: ' + c.hiddenDamages.length;
+  else if (c.damages.length) msg += ' 🩹 дефекты: ' + c.damages.length;
+  else msg += ' ✨';
+
+  toast(msg, 'success');
   vibrate(30);
   renderSim();
 }
@@ -386,31 +810,43 @@ function sellG(id) {
 
   var c = G.gar.find(function(x) { return String(x.id) === String(id); });
   if (!c) return;
-  
+
   var sp = calcSP(c);
   var fee = Math.round(sp * 0.05);
   var payout = sp - fee;
+  var hiddenPenalty = 0;
+  var hadComplaint = false;
+  if (getUnknownDamageCount(c) > 0) {
+    hiddenPenalty = Math.round(getHiddenRepairReserve(c) * 0.60);
+    payout = Math.max(0, payout - hiddenPenalty);
+    hadComplaint = true;
+  }
   var profit = payout - (c.pp || 0);
-  
+
   G.m += payout;
   G.gar = G.gar.filter(function(x) { return String(x.id) !== String(id); });
-  
-  // Убираем выбор если продали выбранную машину
+
   if (String(selectedSrvCarId) === String(id)) {
     selectedSrvCarId = '';
     localStorage.removeItem('selectedSrvCarId');
   }
-  
+
+  var repDelta = getRepDeltaFromSale(profit, c, hadComplaint);
+  adjustRep(repDelta);
+
   GS.totalDeals++;
   GS.totalProfit += profit;
   saveGlobalStats();
   checkAchievements(unlockAch);
   addXP('торговля', 35);
-  
+  updateContracts('sell', { profit: profit, hadComplaint: hadComplaint, sellPrice: sp, segment: c.seg || getCarSegment(c), rareLevel: c.rareLevel || 'normal' });
+
   var msg = (profit >= 0 ? '+' : '') + fmt(profit) + ' ₽ (ком. ' + fmt(fee) + ' ₽)';
-  toast(profit >= 0 ? '💰 ' + msg : '📉 ' + msg, profit >= 0 ? 'success' : 'error');
-  vibrate(profit >= 0 ? 40 : 80);
-  
+  if (hadComplaint) msg += ' • скрытые дефекты: -' + fmt(hiddenPenalty) + ' ₽';
+  if (repDelta) msg += ' • реп ' + (repDelta > 0 ? '+' : '') + repDelta;
+  toast(profit >= 0 ? '💰 ' + msg : '📉 ' + msg, hadComplaint ? 'error' : (profit >= 0 ? 'success' : 'error'));
+  vibrate(hadComplaint ? 90 : (profit >= 0 ? 40 : 80));
+
   renderSim();
 }
 
@@ -442,7 +878,16 @@ function applySrv(sid) {
     c.mi = Math.max(1000, c.mi + s.e.m); 
     addXP('хитрость', 60); 
   }
-  if (s.e.r) c.pr = true;
+  if (s.e.r) {
+    c.pr = true;
+    if (getHiddenDamages(c).length) {
+      c.damages = mergeUniqueDamages(c.damages, c.hiddenDamages);
+      c.hiddenDamages = [];
+      c.hp = false;
+      updateContracts('diagnose', { foundHidden: true });
+      toast('💻 Диагностика вскрыла скрытые дефекты', 'success');
+    }
+  }
   if (s.e.vm) {
     c.vm = c.vm || 1;
     c.vm *= s.e.vm;
@@ -530,6 +975,11 @@ export function refreshMarket() {
     G.lastEvent = null;
   }
 
+  rollMarketPulse();
+  rollEconomyState();
+  rollRivalPressure();
+  rollDailyContracts();
+
   // Расходы на содержание
   var upkeep = 0;
   G.gar.forEach(function(c) {
@@ -557,13 +1007,19 @@ export function refreshMarket() {
   }
 
   // Новые машины на рынке
-  var carCount = rnd(5, 8);
+  var tier = getRepTier(G.rep || 0);
+  var carCount = rnd(5, 8) + (tier.key === 'dealer' ? 1 : tier.key === 'elite' ? 2 : 0);
   G.mkt = [];
   for (var j = 0; j < carCount; j++) {
     var c = genCarSim();
     c.ap = Math.round(c.ap * (G.mods.apMult || 1));
     G.mkt.push(c);
   }
+  var rivals = getRivalProfile();
+  G.mkt.forEach(function(c) {
+    c.rivalPressure = Math.random() < Math.min(0.65, 0.10 + (rivals.pressure || 0) * 0.12 + ((c.rareLevel === 'rare' || c.rareLevel === 'elite') ? 0.16 : 0));
+  });
+  rivalSweepMarket();
   
   G.taxi = null;
   renderSim();
@@ -611,21 +1067,23 @@ function renderCarModal() {
   if (!c) { closeModalBtn(); return; }
 
   var hero = document.getElementById('cm-emoji');
-  hero.innerHTML = getCarImageTag(c, 'car-img modal-car-img');
+  hero.innerHTML = getCarPremiumCardTag(c, 'premium-card-img modal-premium-card');
   document.getElementById('cm-name').textContent = c.n;
-  document.getElementById('cm-sub').textContent = c.yr + ' • ' + fmt(c.mi) + ' км • ' + c.cond + '%';
+  document.getElementById('cm-sub').textContent = c.yr + ' • ' + fmt(c.mi) + ' км • состояние ' + c.cond + '%';
 
   var sp = calcSP(c);
   var fee = Math.round(sp * 0.05);
   var profit = sp - fee - (c.pp || 0);
   var srvList = c.srv ? Object.keys(c.srv).filter(function(k) { return c.srv[k]; }) : [];
   var dmgHtml = '';
-  if (c.damages && c.damages.length) {
+  var knownDamages = getKnownDamages(c);
+  var hiddenCount = getUnknownDamageCount(c);
+  if (knownDamages && knownDamages.length) {
     dmgHtml = '<div class="modal-sec">' +
-      '<div class="modal-sec-title">🩹 Повреждения (' + c.damages.length + ')</div>' +
-      '<div class="car-damage-visual">' + renderCarVisual(c.damages) + '</div>' +
+      '<div class="modal-sec-title">🩹 Повреждения (' + knownDamages.length + ')</div>' +
+      '<div class="car-damage-visual">' + renderCarVisual(knownDamages) + '</div>' +
       '<div class="dmg-list">' +
-        c.damages.map(function(d) {
+        knownDamages.map(function(d) {
           return '<div class="dmg">' +
             '<div class="dmg-header">' +
               '<span class="dmg-icon">' + d.icon + '</span>' +
@@ -642,7 +1100,7 @@ function renderCarModal() {
   } else {
     dmgHtml = '<div class="modal-sec">' +
       '<div class="modal-sec-title">✨ Состояние</div>' +
-      '<div class="car-damage-visual">' + renderCarVisual([]) + '</div>' +
+      '<div class="car-damage-visual">' + renderCarVisual(knownDamages) + '</div>' +
       '<div class="no-damage">Повреждений не обнаружено!</div>' +
     '</div>';
   }
@@ -661,11 +1119,13 @@ function renderCarModal() {
       '<div class="tags">' +
         '<div class="tag ' + (c.pr ? 'ok' : 'warn') + '">' + (c.pr ? '💻 Диагностика OK' : '💻 Без диагностики') + '</div>' +
         '<div class="tag ' + (c.hp ? 'warn' : 'ok') + '">' + (c.hp ? '⚠️ Скрытые проблемы' : '✅ Чистая история') + '</div>' +
+        '<div class="tag rep-inline">😎 ' + getRepTier(G.rep || 0).label + '</div>' +
         '<div class="tag">🧾 Услуг: ' + srvList.length + '</div>' +
         '<div class="tag">📈 VM: x' + (c.vm || 1).toFixed(2) + '</div>' +
       '</div>' +
     '</div>' +
-    dmgHtml;
+    dmgHtml +
+    (hiddenCount ? '<div class="hidden-note">⚠️ Без диагностики у этой машины остаётся ' + hiddenCount + ' скрыт(ых) дефект(ов). Продажа без проверки может ударить по прибыли и репутации.</div>' : '');
 }
 
 // Визуализация машины с повреждениями
