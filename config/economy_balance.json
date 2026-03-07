@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "economy": {
+    "parkingCostPerDayBase": 1200,
+    "showroomCostPerDayBase": 4000,
+    "diagCostBase": 4500,
+    "deepDiagCostBase": 12000,
+    "carWashCost": 2200,
+    "detailingCost": 18000,
+    "legalCheckCost": 7000,
+    "auctionFeeRate": 0.04,
+    "salesCommissionRate": 0.03,
+    "emergencyTowCost": 6000,
+    "heatFineBase": 25000,
+    "hiddenDefectRepairMultiplier": 1.25,
+    "slowSaleDailyDepreciation": 0.002,
+    "maxRecommendedGarageLoad": 0.8
+  },
+  "pricingFormula": {
+    "classWeight": 1.0,
+    "ageWeight": 0.85,
+    "conditionWeight": 1.1,
+    "marketDemandWeight": 0.9,
+    "districtWeight": 0.35,
+    "historyWeight": 0.45,
+    "legalRiskWeight": 0.7,
+    "rarityWeight": 0.4
+  },
+  "marginTargets": {
+    "budget": {"expected": 0.08, "strong": 0.14, "godDeal": 0.22},
+    "middle": {"expected": 0.11, "strong": 0.18, "godDeal": 0.28},
+    "premium": {"expected": 0.13, "strong": 0.22, "godDeal": 0.35},
+    "blackMarket": {"expected": 0.2, "strong": 0.35, "godDeal": 0.6}
+  }
+}
