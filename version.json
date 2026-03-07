@@ -1,16 +1,13 @@
 {
-  "version": 404,
-  "build": 404,
-  "versionName": "4.0.4",
+  "version": 406,
+  "build": 406,
+  "versionName": "4.0.6",
   "min_supported": 300,
   "forceUpdateBelow": 300,
-  "apk_url": "https://github.com/cst1me/perekup2077-web/releases",
-  "web_url": "https://cst1me.github.io/perekup2077-web/",
   "changelog": [
-    "🔧 Исправлены onclick кнопки (startSixty, startSim, startRound)",
-    "⚡ Fallback-стабы теперь в <head> — работают сразу",
-    "📱 Стабильная работа в Android WebView",
-    "🛡️ Улучшена надёжность загрузки модулей"
-  ],
-  "notes": "Критическое исправление кнопок меню и режима 60 секунд."
+    "🖼️ Картинки машин на рынке",
+    "📋 Упрощённый интерфейс рынка",
+    "🚗 6 лотов с счётчиком",
+    "🔧 Исправлены onclick кнопки"
+  ]
 }

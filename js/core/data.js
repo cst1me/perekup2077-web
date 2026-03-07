@@ -1,4 +1,4 @@
-// PEREKUP 2077 — static data v4.0.2
+// PEREKUP 2077 — static data v3.0.5
 export var comments = [
   "Не бита, не крашена, бабушка в церковь ездила","Масло не жрёт, просто любит","Пробег реальный, земля плоская",
   "Один хозяин, не считая пятерых","Двигатель шепчет","ДТП не было, забор сам выпрыгнул",
@@ -18,16 +18,16 @@ export var legendaryComments = [
 ];
 
 export var cars = [
-  {id:"klassika-2107",n:"Классика 2107",e:"🚗",min:30000,max:80000,segment:'mass',liquidity:0.92,risk:0.18,maintenance:0.05,traits:['cheap','fragile','flip-fast']},
-  {id:"hetchbek-narodnyy",n:"Хэтчбек Народный",e:"🚙",min:50000,max:150000,segment:'mass',liquidity:0.95,risk:0.16,maintenance:0.04,traits:['city','cheap-service','mass-market']},
-  {id:"sedan-ekonom",n:"Седан Эконом",e:"🚗",min:150000,max:400000,segment:'mass',liquidity:0.97,risk:0.14,maintenance:0.05,traits:['liquid','safe-margin','mass-market']},
-  {id:"sedan-komfort",n:"Седан Комфорт",e:"🚙",min:400000,max:900000,segment:'comfort',liquidity:0.86,risk:0.19,maintenance:0.06,traits:['balanced','mainstream-plus']},
-  {id:"taksi-sedan",n:"Такси-Седан",e:"🚕",min:300000,max:800000,segment:'mass',liquidity:0.89,risk:0.22,maintenance:0.07,traits:['high-mileage','workhorse','demand-spikes']},
-  {id:"gorodskoy-kompakt",n:"Городской Компакт",e:"🚗",min:350000,max:900000,segment:'mass',liquidity:0.91,risk:0.15,maintenance:0.04,traits:['urban','fuel-efficient']},
-  {id:"biznes-sedan",n:"Бизнес-Седан",e:"🚘",min:500000,max:2000000,segment:'business',liquidity:0.66,risk:0.28,maintenance:0.09,traits:['prestige','slow-turnover','high-margin']},
-  {id:"sportkupe",n:"Спорткупе",e:"🏎️",min:400000,max:2500000,segment:'collector',liquidity:0.54,risk:0.34,maintenance:0.11,traits:['emotional-buy','high-risk','high-margin']},
-  {id:"premium-sedan",n:"Премиум-Седан",e:"🚘",min:600000,max:3500000,segment:'premium',liquidity:0.48,risk:0.37,maintenance:0.12,traits:['elite','slow-burn','reputation-gated']},
-  {id:"krossover",n:"Кроссовер",e:"🚙",min:1500000,max:7000000,segment:'business',liquidity:0.78,risk:0.21,maintenance:0.08,traits:['seasonal-demand','popular','strong-winter-sales']}
+  {id:"klassika-2107",n:"Классика 2107",e:"🚗",min:30000,max:80000},
+  {id:"hetchbek-narodnyy",n:"Хэтчбек Народный",e:"🚙",min:50000,max:150000},
+  {id:"sedan-ekonom",n:"Седан Эконом",e:"🚗",min:150000,max:400000},
+  {id:"sedan-komfort",n:"Седан Комфорт",e:"🚙",min:400000,max:900000},
+  {id:"taksi-sedan",n:"Такси-Седан",e:"🚕",min:300000,max:800000},
+  {id:"gorodskoy-kompakt",n:"Городской Компакт",e:"🚗",min:350000,max:900000},
+  {id:"biznes-sedan",n:"Бизнес-Седан",e:"🚘",min:500000,max:2000000},
+  {id:"sportkupe",n:"Спорткупе",e:"🏎️",min:400000,max:2500000},
+  {id:"premium-sedan",n:"Премиум-Седан",e:"🚘",min:600000,max:3500000},
+  {id:"lyuks-krossover",n:"Люкс-Кроссовер",e:"🏎️",min:1500000,max:7000000}
 ];
 
 export var names = ["Ашот","Рустам","Серёга","Дядя Вова","Гена","Армен","Борис","Саня","Тимур","Мага"];
@@ -78,23 +78,11 @@ export var srvs = [
   {id:"polish",n:"Полировка",d:"Блеск кузова",p:5000,i:"✨",e:{c:5,vm:1.04},cat:'basic'},
   {id:"oil",n:"Замена масла",d:"Свежее масло",p:5000,i:"🛢️",e:{c:8,vm:1.03},cat:'basic'},
   {id:"filter",n:"Фильтры",d:"Воздушный+салон",p:3000,i:"🌀",e:{c:4,vm:1.02},cat:'basic'},
-  {id:"battery",n:"Новый аккумулятор",d:"Холодный пуск без сюрпризов",p:7000,i:"🔋",e:{c:5,vm:1.03},cat:'basic'},
-  {id:"alignment",n:"Развал-схождение",d:"Руль ровно, резину не ест",p:6000,i:"📐",e:{c:5,vm:1.03,fixPart:'tires'},cat:'basic'},
-  {id:"fluids",n:"Техжидкости",d:"Антифриз, тормозная, ГУР",p:6500,i:"🧪",e:{c:6,vm:1.03},cat:'basic'},
-  {id:"ozone",n:"Озонация салона",d:"Убирает запах и сырость",p:4500,i:"🌬️",e:{c:4,vm:1.03},cat:'basic'},
-
   // Кузовной ремонт
   {id:"dent",n:"PDR вмятины",d:"Без покраски",p:8000,i:"🔨",e:{c:10,vm:1.05,fixZone:'any'},cat:'body'},
   {id:"paint_local",n:"Локальная покраска",d:"1 элемент",p:15000,i:"🎨",e:{c:15,vm:1.08,fixZone:'any'},cat:'body'},
   {id:"paint_full",n:"Полная покраска",d:"Весь кузов",p:80000,i:"🖌️",e:{c:35,vm:1.20,fixAll:true},cat:'body'},
   {id:"rust",n:"Антикор",d:"Обработка днища",p:12000,i:"🛡️",e:{c:12,vm:1.06},cat:'body'},
-  {id:"bumper_front",n:"Передний бампер",d:"Подгонка и окрас",p:11000,i:"🧱",e:{c:9,vm:1.05,fixPart:'bumper_f'},cat:'body'},
-  {id:"bumper_rear",n:"Задний бампер",d:"Восстановление пластика",p:10500,i:"🧱",e:{c:8,vm:1.04,fixPart:'bumper_r'},cat:'body'},
-  {id:"doorsmart",n:"Дверной SMART-ремонт",d:"Сколы и лёгкие вмятины",p:14500,i:"🚪",e:{c:12,vm:1.06,fixZone:'left'},cat:'body'},
-  {id:"panel_right",n:"Правый борт",d:"Крыло + двери справа",p:16500,i:"🪛",e:{c:13,vm:1.07,fixZone:'right'},cat:'body'},
-  {id:"roof_restore",n:"Крыша без града",d:"Выправление и полироль",p:18000,i:"⬜",e:{c:14,vm:1.06,fixPart:'roof'},cat:'body'},
-  {id:"trunk_restore",n:"Багажник в линию",d:"Подгонка задней геометрии",p:14000,i:"📦",e:{c:10,vm:1.05,fixPart:'trunk'},cat:'body'},
-
   // Механика
   {id:"engine",n:"Ремонт двигателя",d:"Капремонт",p:80000,i:"⚙️",e:{c:40,vm:1.18},cat:'mech'},
   {id:"transmission",n:"Ремонт КПП",d:"Коробка передач",p:45000,i:"🔄",e:{c:25,vm:1.12},cat:'mech'},
@@ -102,31 +90,15 @@ export var srvs = [
   {id:"brakes",n:"Ремонт тормозов",d:"Колодки+диски",p:15000,i:"🛑",e:{c:12,vm:1.06,fixPart:'brakes'},cat:'mech'},
   {id:"exhaust",n:"Ремонт выхлопа",d:"Глушитель",p:10000,i:"💨",e:{c:8,vm:1.04,fixPart:'exhaust'},cat:'mech'},
   {id:"tires",n:"Новые шины",d:"Комплект R16",p:20000,i:"⭕",e:{c:10,vm:1.05,fixPart:'tires'},cat:'mech'},
-  {id:"cooling",n:"Система охлаждения",d:"Радиатор + патрубки",p:17000,i:"❄️",e:{c:12,vm:1.05},cat:'mech'},
-  {id:"starter",n:"Стартер/генератор",d:"Запуск без капризов",p:13000,i:"⚡",e:{c:10,vm:1.04},cat:'mech'},
-  {id:"steering",n:"Рулевое управление",d:"Тяги и рейка",p:21000,i:"🛞",e:{c:14,vm:1.06},cat:'mech'},
-  {id:"ac_service",n:"Кондиционер",d:"Комфорт в салоне",p:9000,i:"🧊",e:{c:6,vm:1.03},cat:'mech'},
-  {id:"fuel_system",n:"Топливная система",d:"Форсунки и насос",p:19500,i:"⛽",e:{c:14,vm:1.06},cat:'mech'},
-  {id:"timing",n:"ГРМ сервис",d:"Ремень/цепь под контроль",p:26000,i:"⏱️",e:{c:18,vm:1.07},cat:'mech'},
-
   // Стёкла и оптика
   {id:"windshield",n:"Замена лобового",d:"Новое стекло",p:12000,i:"🪟",e:{c:8,vm:1.04,fixPart:'windshield'},cat:'glass'},
   {id:"headlights",n:"Ремонт фар",d:"Полировка+замена",p:8000,i:"💡",e:{c:6,vm:1.03,fixZone:'front'},cat:'glass'},
   {id:"taillights",n:"Ремонт фонарей",d:"Задняя оптика",p:5000,i:"🔴",e:{c:4,vm:1.02,fixZone:'rear'},cat:'glass'},
-  {id:"rear_glass",n:"Заднее стекло",d:"Без трещин и сколов",p:9000,i:"🪞",e:{c:6,vm:1.03,fixPart:'glass_rear'},cat:'glass'},
-  {id:"side_glass",n:"Боковые стёкла",d:"Левая и правая сторона",p:8500,i:"▫️",e:{c:6,vm:1.03,fixPart:'glass_l'},cat:'glass'},
-  {id:"mirrors",n:"Зеркала комплект",d:"Оба зеркала в сборе",p:6000,i:"🔳",e:{c:5,vm:1.03},cat:'glass'},
-  {id:"optics_pack",n:"Пакет оптики",d:"Фары + фонари + мелочи",p:14000,i:"🔦",e:{c:10,vm:1.05,fixZone:'front'},cat:'glass'},
-
   // Специальные
   {id:"diag",n:"Диагностика",d:"Комп. проверка",p:3000,i:"💻",e:{r:1,vm:1.02},cat:'special'},
   {id:"mileage",n:"Корректировка",d:"Пробег -50000км 🤫",p:15000,i:"📊",e:{m:-50000,vm:1.03},cat:'special'},
   {id:"detailing",n:"Детейлинг",d:"Полная химчистка",p:25000,i:"🧹",e:{c:15,vm:1.10},cat:'special'},
-  {id:"tuning",n:"Чип-тюнинг",d:"+20% мощности",p:35000,i:"🚀",e:{c:5,vm:1.15},cat:'special'},
-  {id:"presale_pack",n:"Предпродажный пакет",d:"Фото, блеск, запах, мелочи",p:18000,i:"📸",e:{c:9,vm:1.08,fixZone:'any'},cat:'special'},
-  {id:"vin_clean",n:"Юр. сопровождение",d:"Проверка истории и чистый отчёт",p:12000,i:"📑",e:{r:1,vm:1.04},cat:'special'},
-  {id:"express_flip",n:"Express Flip",d:"Быстрый комплект для витрины",p:22000,i:"⚡",e:{c:10,vm:1.09},cat:'special'},
-  {id:"premium_photo",n:"Premium listing",d:"Контент для дорогой продажи",p:14000,i:"🌆",e:{c:3,vm:1.07},cat:'special'}
+  {id:"tuning",n:"Чип-тюнинг",d:"+20% мощности",p:35000,i:"🚀",e:{c:5,vm:1.15},cat:'special'}
 ];
 
 // Категории услуг

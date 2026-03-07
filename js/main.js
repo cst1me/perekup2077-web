@@ -1,11 +1,10 @@
-// PEREKUP 2077 — Main v4.0.4 ONCLICK FIX
+// PEREKUP 2077 — Main v4.0.5 HYBRID
 import { toast } from './core/utils.js';
 import { loadGlobalStats, updateGlobalStatsUI, APP_VERSION, BUILD_VERSION, COMMIT_HASH } from './core/state.js';
-import { preloadConfigs } from './core/config.js';
 import { saveSnapshot, consumePendingRestore } from './core/snapshots.js';
 import { openRepairModal, closeRepairModal, repairGame, autoRollbackOnBoot, isRepairModalOpen } from './core/repair.js';
 import { wireTabs, toMenu as _toMenu, show } from './ui/screens.js';
-import { startSixty, startRound, stopSixtyInterval, buy, haggle, skip, inspect } from './modes/sixty.js';
+import { startSixty, startRound, stopSixtyInterval, buy, haggle, skip } from './modes/sixty.js';
 import { startSim, refreshMarket, sellFromModal, setSrvFromModal, closeCarModal } from './modes/sim.js';
 import { initUpdater, showPatchNotes, checkForUpdate, applyUpdate, resetAppCachesAndReload, toggleEmergencyMode, applyGamePatches } from './update/updater.js';
 
@@ -28,8 +27,10 @@ function softResetSession() {
   }
 }
 
-// Перезаписываем fallback-стабы полными версиями
-function exposeGlobals() {
+async function boot() {
+  console.log('🚗 ПЕРЕКУП 2077 v' + APP_VERSION + ' build ' + BUILD_VERSION);
+
+  // ===== КРИТИЧНО: Экспорты ПЕРВЫМИ, до любых async операций =====
   Object.assign(window, {
     startSixty: startSixty,
     startSim: startSim,
@@ -43,7 +44,6 @@ function exposeGlobals() {
     buy: buy,
     haggle: haggle,
     skip: skip,
-    inspect: inspect,
     refreshMarket: refreshMarket,
     sellFromModal: sellFromModal,
     setSrvFromModal: setSrvFromModal,
@@ -54,22 +54,24 @@ function exposeGlobals() {
     applyUpdate: applyUpdate,
     resetAppCachesAndReload: resetAppCachesAndReload,
     toggleEmergencyMode: toggleEmergencyMode,
-    softResetSession: softResetSession
+    softResetSession: softResetSession,
+    closeTopModal: function() {
+      try {
+        if (window.isRepairModalOpen && window.isRepairModalOpen()) { window.closeRepairModal(); return true; }
+        var cm = document.getElementById('car-modal');
+        if (cm && cm.classList.contains('active') && typeof window.closeModalBtn === 'function') { window.closeModalBtn(); return true; }
+      } catch(e) {}
+      return false;
+    }
   });
-  console.log('[MAIN] ✅ Globals exposed (overwriting fallbacks)');
-}
+  console.log('[MAIN] ✅ Globals exported');
 
-async function boot() {
-  console.log('🚗 ПЕРЕКУП 2077 v' + APP_VERSION + ' build ' + BUILD_VERSION);
-
-  // Сразу регистрируем полные версии функций
-  exposeGlobals();
-
+  // Базовая инициализация
   try {
     loadGlobalStats();
     updateGlobalStatsUI();
   } catch (e) {
-    console.error('[BOOT] stats init:', e);
+    console.error('[BOOT] stats:', e);
   }
 
   try {
@@ -78,12 +80,7 @@ async function boot() {
     console.error('[BOOT] wireTabs:', e);
   }
 
-  try {
-    await preloadConfigs();
-  } catch (e) {
-    console.warn('[BOOT] preloadConfigs:', e);
-  }
-
+  // Async операции - каждая в своём try-catch
   try {
     await consumePendingRestore();
   } catch (e) {
@@ -115,6 +112,7 @@ async function boot() {
     console.warn('[BOOT] saveSnapshot:', e);
   }
 
+  // Обновляем UI с версией
   try {
     var c = (COMMIT_HASH && COMMIT_HASH !== '__COMMIT__') ? COMMIT_HASH.slice(0, 7) : 'local';
     var buildLine = 'v' + APP_VERSION + ' • build ' + BUILD_VERSION + ' • ' + c;
@@ -122,12 +120,6 @@ async function boot() {
     if (el) el.textContent = buildLine;
     var sub = document.querySelector('.menu-sub');
     if (sub) sub.textContent = 'v' + APP_VERSION;
-    var aboutTitle = document.getElementById('pn-title');
-    if (aboutTitle) aboutTitle.textContent = 'v' + APP_VERSION;
-    var aboutVer = document.getElementById('pn-ver');
-    if (aboutVer) aboutVer.textContent = APP_VERSION;
-    var aboutBuild = document.getElementById('pn-build');
-    if (aboutBuild) aboutBuild.textContent = BUILD_VERSION;
   } catch (e) {
     console.warn('[BOOT] build info:', e);
   }

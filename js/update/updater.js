@@ -1,4 +1,4 @@
-// PEREKUP 2077 — Updater v4.0.2 stable-max
+// PEREKUP 2077 — Updater v3.1.0 stable
 import { toast } from '../core/utils.js';
 import { APP_VERSION, BUILD_VERSION, G } from '../core/state.js';
 import { show } from '../ui/screens.js';
@@ -10,19 +10,6 @@ var EMERGENCY_KEY = 'p2077_emergency_off';
 var PATCH_META_KEY = 'p2077_patch_meta';
 var REMOTE_CACHE_KEY = 'p2077_remote_version_cache';
 var PATCH_CACHE_KEY = 'p2077_patch_manifest_cache';
-var REMOTE_CHECK_META_KEY = 'p2077_remote_check_meta';
-var DEFAULT_REMOTE = {
-  version: parseInt(BUILD_VERSION, 10) || 311,
-  build: parseInt(BUILD_VERSION, 10) || 311,
-  versionName: APP_VERSION,
-  min_supported: 308,
-  forceUpdateBelow: 308,
-  patch_api: './patches/patches.json',
-  apk_url: '',
-  web_url: './',
-  changelog: ['Локальная встроенная конфигурация обновлений'],
-  notes: 'Игра использует встроенную конфигурацию, если GitHub временно недоступен.'
-};
 
 function bust(url) {
   return url + (url.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now();
@@ -50,12 +37,10 @@ function guessBasePath() {
 
 function makeCandidates(file) {
   var base = guessBasePath();
-  var clean = file.replace(/^\.?\//, '');
-  var first = base + clean;
-  var rootUrl = '/' + clean;
-  var currentDir = './' + clean;
-  var absolute = location.origin + base + clean;
-  return dedupe([currentDir, first, absolute, rootUrl]);
+  var first = base + file.replace(/^\.?\//, '');
+  var rootUrl = '/' + file.replace(/^\/?/, '');
+  var currentDir = './' + file.replace(/^\.?\//, '');
+  return dedupe([currentDir, first, rootUrl]);
 }
 
 function safeParse(raw, fallback) {
@@ -70,27 +55,17 @@ function readJsonCache(key) {
   return safeParse(localStorage.getItem(key) || '', null);
 }
 
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise(function (_, reject) {
-      setTimeout(function () { reject(new Error('timeout')); }, ms || 3500);
-    })
-  ]);
-}
-
-async function fetchJsonWithFallback(candidates, cacheKey, embeddedFallback) {
+async function fetchJsonWithFallback(candidates, cacheKey) {
   var lastError = null;
   for (var i = 0; i < candidates.length; i++) {
     var url = candidates[i];
     try {
-      var res = await withTimeout(fetch(bust(url), { cache: 'no-store' }), 3500);
+      var res = await fetch(bust(url), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status + ' @ ' + url);
       var data = await res.json();
       data.__source = url;
       saveJsonCache(cacheKey, data);
-      try { localStorage.setItem(REMOTE_CHECK_META_KEY, JSON.stringify({ ok: true, at: Date.now(), source: url })); } catch (e) {}
-      return { ok: true, data: data, source: url, fromCache: false, fromEmbedded: false };
+      return { ok: true, data: data, source: url, fromCache: false };
     } catch (e) {
       lastError = e;
     }
@@ -98,12 +73,7 @@ async function fetchJsonWithFallback(candidates, cacheKey, embeddedFallback) {
 
   var cached = readJsonCache(cacheKey);
   if (cached) {
-    try { localStorage.setItem(REMOTE_CHECK_META_KEY, JSON.stringify({ ok: false, at: Date.now(), source: cached.__source || 'local-cache' })); } catch (e) {}
-    return { ok: true, data: cached, source: cached.__source || 'local-cache', fromCache: true, fromEmbedded: false };
-  }
-
-  if (embeddedFallback) {
-    return { ok: true, data: embeddedFallback, source: 'embedded-default', fromCache: false, fromEmbedded: true };
+    return { ok: true, data: cached, source: cached.__source || 'localStorage', fromCache: true };
   }
 
   return { ok: false, error: lastError || new Error('No candidates') };
@@ -195,82 +165,43 @@ async function registerSW() {
   }
 }
 
-function updateLiveNetworkBadge() {
-  var online = typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
-  var meta = readJsonCache(REMOTE_CHECK_META_KEY);
-  if (!online) {
-    setPatchStatus('📦 Оффлайн-режим: сеть недоступна, используется локальная конфигурация', 'warn');
-    return;
-  }
-  if (meta && meta.ok) {
-    setPatchStatus('✅ Связь есть • сервер обновлений доступен', 'ok');
-    return;
-  }
-  if (meta && !meta.ok) {
-    setPatchStatus('📦 Сервер обновлений недоступен, игра работает в локальном режиме', 'warn');
-    return;
-  }
-  setPatchStatus('Готов к проверке', '');
-}
-
 export function initUpdater() {
   if ('serviceWorker' in navigator && !isEmergencyMode()) registerSW();
   if (!localStorage.getItem(LS_BUILD)) localStorage.setItem(LS_BUILD, String(BUILD_VERSION));
-  window.addEventListener('online', function () {
-    updateLiveNetworkBadge();
-    setTimeout(function () { checkForUpdate(false); }, 300);
-  });
-  window.addEventListener('offline', updateLiveNetworkBadge);
-  setTimeout(function () {
-    updateLiveNetworkBadge();
-    checkForUpdate(false);
-  }, 800);
+  setTimeout(function () { checkForUpdate(false); }, 800);
 }
 
 export function showPatchNotes() {
   show('patch-screen');
-  updateLiveNetworkBadge();
   checkForUpdate(false);
 }
 
 export async function checkForUpdate(showToast) {
   try {
-    setPatchStatus(isEmergencyMode() ? '🛑 Аварийный режим: кеш/SW отключены' : 'Проверяю обновления...');
-    var result = await fetchJsonWithFallback(getVersionCandidates(), REMOTE_CACHE_KEY, DEFAULT_REMOTE);
+    setPatchStatus(isEmergencyMode() ? '🛑 Аварийный режим: кеш/SW отключены' : 'Проверяю связь с сервером...');
+    var result = await fetchJsonWithFallback(getVersionCandidates(), REMOTE_CACHE_KEY);
     if (!result.ok || !result.data) throw result.error || new Error('version unavailable');
 
     var data = result.data;
     setPatchNotes(data);
 
-    var serverBuild = parseInt(data.version || data.build, 10) || DEFAULT_REMOTE.version;
+    var serverBuild = parseInt(data.version || data.build, 10) || 0;
     var localBuild = parseInt(localStorage.getItem(LS_BUILD) || BUILD_VERSION, 10);
-    var forceFloor = parseInt(data.min_supported || data.forceUpdateBelow || 0, 10) || 0;
-
-    if (forceFloor && localBuild < forceFloor) {
-      setPatchStatus('🚨 Требуется критическое обновление', 'err');
-      setUpdateBtn(true);
-      window._updateData = data;
-      if (showToast) toast('🚨 Нужна новая версия', 'error');
-      return;
-    }
 
     if (serverBuild > localBuild) {
       setPatchStatus('🔄 Доступно обновление: v' + (data.versionName || serverBuild), 'warn');
       setUpdateBtn(true);
-      window._updateData = data;
       if (showToast) toast('🔄 Есть обновление!', 'success');
+      window._updateData = data;
       return;
     }
 
     localStorage.setItem(LS_BUILD, String(BUILD_VERSION));
     setUpdateBtn(false);
 
-    if (result.fromEmbedded) {
-      setPatchStatus('📦 Локальный режим: используется встроенная конфигурация обновлений', 'warn');
-      if (showToast) toast('📦 Локальный режим', 'success');
-    } else if (result.fromCache) {
-      setPatchStatus('📦 Сервер временно недоступен, используется локальный кеш', 'warn');
-      if (showToast) toast('📦 Локальный кеш', 'success');
+    if (result.fromCache) {
+      setPatchStatus('📦 Локальный режим: сервер временно недоступен, используется кеш', 'warn');
+      if (showToast) toast('📦 Оффлайн-режим', 'success');
     } else {
       setPatchStatus(isEmergencyMode() ? '🛑 Аварийный режим включён • версия актуальна' : '✅ Связь есть • версия актуальна', 'ok');
       if (showToast) toast('✅ Актуально', 'success');
@@ -278,9 +209,15 @@ export async function checkForUpdate(showToast) {
   } catch (e) {
     console.warn('[UPDATE]', e);
     setUpdateBtn(false);
-    setPatchNotes(DEFAULT_REMOTE);
-    setPatchStatus('📦 Игра работает локально: конфиг обновлений недоступен', 'warn');
-    if (showToast) toast('📦 Локальный режим', 'success');
+    var cached = readJsonCache(REMOTE_CACHE_KEY);
+    if (cached) {
+      setPatchNotes(cached);
+      setPatchStatus('📦 Сервер недоступен • доступна локальная информация', 'warn');
+      if (showToast) toast('📦 Локальный режим', 'success');
+    } else {
+      setPatchStatus('⚠️ Сервер обновлений недоступен, игра работает локально', 'warn');
+      if (showToast) toast('⚠️ Сервер недоступен', 'error');
+    }
   }
 }
 
@@ -288,7 +225,7 @@ export async function applyUpdate() {
   var btn = document.getElementById('pn-update-btn');
 
   try {
-    var data = window._updateData || readJsonCache(REMOTE_CACHE_KEY) || DEFAULT_REMOTE;
+    var data = window._updateData || readJsonCache(REMOTE_CACHE_KEY) || {};
     var apkUrl = data.apk_url || data.apkUrl || '';
     var webUrl = data.web_url || getCurrentWebUrl();
 
@@ -371,8 +308,7 @@ export async function toggleEmergencyMode() {
 
 export async function applyGamePatches() {
   try {
-    var defaultManifest = { latest: 0, patches: [] };
-    var result = await fetchJsonWithFallback(getPatchCandidates(), PATCH_CACHE_KEY, defaultManifest);
+    var result = await fetchJsonWithFallback(getPatchCandidates(), PATCH_CACHE_KEY);
     if (!result.ok || !result.data) throw result.error || new Error('patch manifest unavailable');
     var manifest = result.data;
     if (!manifest || !Array.isArray(manifest.patches)) return 0;
