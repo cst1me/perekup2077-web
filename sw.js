@@ -1,5 +1,5 @@
 // PEREKUP 2077 — Service Worker v3.1.0 stable
-const CACHE_NAME = 'perekup-v406-stable';
+const CACHE_NAME = 'perekup-v413-stable';
 const STATIC_ASSETS = [
   './',
   './index.html',

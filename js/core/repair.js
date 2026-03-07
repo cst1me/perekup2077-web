@@ -2,6 +2,7 @@
 
 import { toast } from './utils.js';
 import { validateCurrentState, listSnapshots, restoreFromBackup, softResetSession } from './snapshots.js';
+import { persistGameState } from './state.js';
 
 function $(id) { return document.getElementById(id); }
 
@@ -96,14 +97,25 @@ function renderSnapshotList(list) {
 }
 
 export async function repairGame() {
+  var keepAchievements = null;
+  try { keepAchievements = localStorage.getItem('globalStats'); } catch (e) {}
   var cur = validateCurrentState();
   if (cur.ok) {
     toast('✅ Состояние норм. Если баги — попробуй rollback вручную.', 'success');
     return openRepairModal();
   }
 
-  toast('⚠️ Найдена поломка: ' + cur.err, 'error');
-  await openRepairModal();
+  try {
+    await softResetSession();
+    if (keepAchievements) localStorage.setItem('globalStats', keepAchievements);
+    await persistGameState('repair-reset');
+    toast('🧼 Сессия восстановлена. Достижения сохранены.', 'success');
+    return true;
+  } catch (e) {
+    toast('⚠️ Найдена поломка: ' + cur.err, 'error');
+    await openRepairModal();
+    return false;
+  }
 }
 
 export async function autoRollbackOnBoot() {

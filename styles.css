@@ -616,8 +616,8 @@ html, body {
 .tab:active, .tab.active { border-color: var(--neon-cyan); color: var(--neon-cyan); }
 .tab.active { background: rgba(0, 255, 247, 0.1); }
 
-.panel { display: none; flex: 1; overflow-y: auto; padding: 6px; -webkit-overflow-scrolling: touch; }
-.panel.active { display: block; }
+.panel { display: none; flex: 1; overflow-y: auto; padding: 6px; -webkit-overflow-scrolling: touch; min-height: 0; }
+.panel.active { display: flex; flex-direction: column; overflow-y: auto; }
 
 .sec-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; }
 .sec-title { font-family: var(--f-title); font-size: clamp(0.9rem, 4vw, 1.1rem); color: var(--neon-cyan); }
@@ -1643,3 +1643,215 @@ html, body {
   .gbox-val { font-size: 0.78rem; }
   .garage-headline { font-size: 0.60rem; }
 }
+
+/* Fix services scroll */
+#services {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+#services .srv-grid {
+  padding-bottom: 100px;
+}
+
+/* ===== COMPACT FIT - всё на 1 экран ===== */
+
+/* Компактные карточки машин на рынке */
+.scar.neo-card {
+  padding: 6px !important;
+  border-radius: 10px !important;
+}
+.scar-media {
+  height: 80px !important;
+  border-radius: 8px !important;
+}
+.scar-body {
+  padding: 6px 4px 4px !important;
+}
+.scar-name {
+  font-size: 11px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scar-year {
+  font-size: 9px !important;
+}
+.scar-comment {
+  font-size: 9px !important;
+  max-height: 28px;
+  overflow: hidden;
+}
+.scar-stats {
+  gap: 4px !important;
+}
+.sstat {
+  padding: 3px 5px !important;
+}
+.sstat-lbl {
+  font-size: 8px !important;
+}
+.sstat-val {
+  font-size: 10px !important;
+}
+.scar-condition {
+  height: 4px !important;
+  margin: 4px 0 !important;
+}
+.scar-tags {
+  display: none !important;
+}
+.scar-price-row {
+  margin-top: 4px !important;
+  gap: 4px !important;
+}
+.scar-price {
+  font-size: 12px !important;
+}
+.scar-btn.buy {
+  padding: 5px 10px !important;
+  font-size: 10px !important;
+}
+
+/* Сетка 2x3 машин */
+.car-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 6px !important;
+  padding: 4px !important;
+}
+
+/* Компактный хедер рынка */
+.market-intel {
+  margin-bottom: 4px !important;
+}
+.mi-chip {
+  font-size: 9px !important;
+  padding: 3px 6px !important;
+}
+.sec-hdr {
+  padding: 4px 8px !important;
+}
+.sec-title {
+  font-size: 12px !important;
+}
+.ref-btn {
+  padding: 4px 8px !important;
+  font-size: 10px !important;
+}
+
+/* Компактные табы */
+.tabs {
+  gap: 2px !important;
+  padding: 4px !important;
+}
+.tab {
+  padding: 6px 8px !important;
+  font-size: 10px !important;
+}
+
+/* Компактный header */
+.hdr {
+  padding: 6px 10px !important;
+}
+.stat {
+  font-size: 11px !important;
+}
+
+/* Панель без скролла */
+.panel {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+#services {
+  overflow-y: auto !important;
+}
+#services .srv-grid {
+  padding-bottom: 80px !important;
+}
+
+/* 60 секунд - компактный offer */
+.offer {
+  padding: 10px !important;
+}
+.offer-content {
+  padding: 10px !important;
+}
+.seller-ava {
+  font-size: 24px !important;
+}
+.seller-name {
+  font-size: 12px !important;
+}
+.car-emoji {
+  font-size: 28px !important;
+}
+.car-name {
+  font-size: 14px !important;
+}
+.car-year {
+  font-size: 11px !important;
+}
+.comment {
+  font-size: 11px !important;
+  padding: 6px !important;
+}
+.price-val {
+  font-size: 20px !important;
+}
+.price-real {
+  font-size: 12px !important;
+}
+.obtn {
+  width: 50px !important;
+  height: 50px !important;
+  font-size: 20px !important;
+}
+
+/* Таймер компактный */
+.timer-row {
+  gap: 8px !important;
+  padding: 8px !important;
+}
+.timer {
+  font-size: 36px !important;
+}
+.timer-label {
+  font-size: 9px !important;
+}
+.combo-mult {
+  font-size: 18px !important;
+}
+.lives-hearts {
+  font-size: 14px !important;
+}
+.speed-val {
+  font-size: 14px !important;
+}
+.round-stats {
+  gap: 16px !important;
+  padding: 6px !important;
+}
+.rstat-val {
+  font-size: 16px !important;
+}
+.rstat-lbl {
+  font-size: 9px !important;
+}
+
+
+/* ===== Yandex Ads / Neo Dealer Terminal ===== */
+.ad-terminal-box { margin-top: 12px; border: 1px solid rgba(0,255,247,0.45); background: linear-gradient(180deg, rgba(8,14,24,0.92), rgba(20,10,38,0.92)); box-shadow: 0 0 18px rgba(0,255,247,0.12), inset 0 0 20px rgba(255,0,255,0.06); }
+.ad-terminal-actions { display: flex; flex-direction: column; gap: 8px; }
+.ad-terminal-note { color: rgba(255,255,255,0.72); font-size: 0.72rem; line-height: 1.35; }
+.ad-terminal-btn { width: 100%; border: 1px solid var(--neon-cyan); background: linear-gradient(135deg, rgba(0,255,247,0.14), rgba(255,0,255,0.12)); color: var(--neon-cyan); font-family: var(--f-mono); letter-spacing: 0.08em; padding: 10px 12px; cursor: pointer; text-transform: uppercase; box-shadow: 0 0 14px rgba(0,255,247,0.18), inset 0 0 10px rgba(0,255,247,0.08); transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+.ad-terminal-btn:hover, .ad-terminal-btn:active { transform: translateY(-1px); border-color: var(--neon-gold); color: var(--neon-gold); box-shadow: 0 0 18px rgba(255,215,0,0.18), inset 0 0 12px rgba(255,215,0,0.08); }
+.ad-terminal-btn.reward { margin-top: 8px; font-size: 0.72rem; padding: 8px 10px; }
+.dmg .ad-terminal-btn { margin-top: 8px; }
+
+
+.taxi-meta-row { display:flex; justify-content:space-between; gap:8px; margin:10px 0 6px; font-family: var(--f-mono); font-size: 0.72rem; }
+.taxi-rank, .taxi-difficulty { border:1px solid rgba(0,255,247,0.3); padding:6px 8px; background:rgba(0,255,247,0.06); color:var(--neon-cyan); }
+.taxi-xpbar { height:8px; border:1px solid rgba(255,215,0,0.35); background:rgba(255,255,255,0.05); margin:10px 0 8px; overflow:hidden; }
+.taxi-xpfill { height:100%; background:linear-gradient(90deg, rgba(255,215,0,0.55), rgba(0,255,247,0.85)); box-shadow:0 0 10px rgba(0,255,247,0.35); }
+.ref-btn { font-family: var(--f-mono); border: 1px solid var(--neon-cyan); background: linear-gradient(135deg, rgba(0,255,247,0.14), rgba(255,0,255,0.12)); color: var(--neon-cyan); box-shadow: 0 0 14px rgba(0,255,247,0.18), inset 0 0 10px rgba(0,255,247,0.08); }
+.ref-btn:active, .ref-btn:hover { border-color: var(--neon-gold); color: var(--neon-gold); }

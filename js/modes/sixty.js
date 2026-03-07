@@ -1,7 +1,7 @@
 // PEREKUP 2077 — 60 seconds mode
 import { fmt, rnd, pick, clamp, toast, vibrate, enterFullscreen } from '../core/utils.js';
 import { comments, scamComments, legendaryComments, cars, names, scamNames, legendaryNames, avas, scamAvas, legendaryAvas, DAMAGE_PARTS } from '../core/data.js';
-import { S, resetSKeepBuys, hiddenLevel, GS, saveGlobalStats, setPB, ACHIEVEMENTS, showAchievement } from '../core/state.js';
+import { S, resetSKeepBuys, hiddenLevel, GS, saveGlobalStats, setPB, ACHIEVEMENTS, showAchievement, persistGameState } from '../core/state.js';
 import { show } from '../ui/screens.js';
 
 var offerUI = null;
@@ -253,6 +253,8 @@ function endRound(reason) {
     document.getElementById('end-icon').textContent = epic ? '👑' : S.m > 150000 ? '🏆' : w ? '👍' : '😢';
     document.getElementById('end-reason').textContent = '⏱️ Время!' + (isRecord ? ' 🎉 РЕКОРД!' : '');
   }
+  persistGameState('sixty-end');
+  if (typeof window !== 'undefined' && typeof window.onSixtyRoundCompleted === 'function') window.onSixtyRoundCompleted();
 }
 
 function unlockAch(a) {
@@ -364,6 +366,7 @@ export function buy() {
   popup(true, profit, 'СДЕЛКА!', mult > 1 || speedB ? '🔥x' + mult + ' ⚡+' + speedB + '%' : '');
   vibrate(30);
   S.buys += 1;
+  persistGameState('sixty-buy');
   newOffer();
   updS();
 }

@@ -1,7 +1,7 @@
 // PEREKUP 2077 — Simulator mode v3.0.5
 import { fmt, rnd, pick, clamp, toast, vibrate, enterFullscreen } from '../core/utils.js';
 import { cars, comments, names, avas, srvs, locs, DAILY_EVENTS, TAXI_DAILY_LIMIT, DAMAGE_PARTS, SERVICE_CATS } from '../core/data.js';
-import { G, GS, saveGlobalStats, loadTaxiDaily, taxiUseOne, hiddenLevel, checkAchievements, showAchievement } from '../core/state.js';
+import { G, GS, saveGlobalStats, loadTaxiDaily, taxiUseOne, hiddenLevel, checkAchievements, showAchievement, persistGameState } from '../core/state.js';
 import { saveSnapshot } from '../core/snapshots.js';
 import { show } from '../ui/screens.js';
 
@@ -21,14 +21,14 @@ function getCarImageSrc(c) {
   var id = (c && (c.carId || c.id)) ? (c.carId || c.id) : 'default';
   // Если id содержит тире и цифры (сгенерированный) — используем default
   if (id.match(/^\d+-/)) id = 'default';
-  return './assets/cars/' + id + '.webp';
+  return './assets/cards-premium/' + id + '.png';
 }
 
 function getCarImageTag(c, cls) {
   var src = getCarImageSrc(c);
   var alt = (c && c.n ? c.n : 'Автомобиль').replace(/"/g, '&quot;');
   cls = cls || 'car-img';
-  return '<img class="' + cls + '" src="' + src + '" alt="' + alt + '" loading="lazy" onerror="this.onerror=null;this.src=\'./assets/cars/default.webp\';">';
+  return '<img class="' + cls + '" src="' + src + '" alt="' + alt + '" loading="lazy" onerror="this.onerror=null;this.src=\'./assets/cards-premium/default.png\';">';
 }
 
 function getConditionClass(cond) {
@@ -112,6 +112,36 @@ function genCarSim() {
 }
 
 function taxiLeft() { return Math.max(0, TAXI_DAILY_LIMIT - loadTaxiDaily()); }
+
+function ensureTaxiProg() {
+  if (!G.taxiProg || typeof G.taxiProg !== 'object') G.taxiProg = { lvl: 1, xp: 0, totalDone: 0 };
+  if (!Number.isInteger(G.taxiProg.lvl) || G.taxiProg.lvl < 1) G.taxiProg.lvl = 1;
+  if (!Number.isInteger(G.taxiProg.xp) || G.taxiProg.xp < 0) G.taxiProg.xp = 0;
+  if (!Number.isInteger(G.taxiProg.totalDone) || G.taxiProg.totalDone < 0) G.taxiProg.totalDone = 0;
+  return G.taxiProg;
+}
+
+function taxiXpNeed(lvl) { return 3 + lvl * 2; }
+
+function taxiTierMeta(lvl) {
+  if (lvl >= 10) return { key: 'elite', name: 'NEON ELITE', mult: 2.35, minDist: 20, maxDist: 60, hard: 'Очень высокий' };
+  if (lvl >= 7) return { key: 'business', name: 'BIZ GRID', mult: 1.9, minDist: 14, maxDist: 48, hard: 'Высокий' };
+  if (lvl >= 4) return { key: 'comfort', name: 'COMFORT+', mult: 1.45, minDist: 9, maxDist: 40, hard: 'Средний' };
+  return { key: 'base', name: 'STREET', mult: 1, minDist: 5, maxDist: 28, hard: 'Базовый' };
+}
+
+function addTaxiXp(amount) {
+  var tp = ensureTaxiProg();
+  tp.totalDone += 1;
+  tp.xp += amount;
+  var ups = 0;
+  while (tp.xp >= taxiXpNeed(tp.lvl)) {
+    tp.xp -= taxiXpNeed(tp.lvl);
+    tp.lvl += 1;
+    ups += 1;
+  }
+  if (ups > 0) toast('🚕 Уровень такси повышен до ' + tp.lvl + '!', 'success');
+}
 
 export function startSim() {
   enterFullscreen();
@@ -295,6 +325,7 @@ function renderSrv() {
 
 function renderTaxi() {
   var tc = document.getElementById('taxi-card');
+  ensureTaxiProg();
   if (!G.gar.length) {
     tc.innerHTML = '<div class="empty"><div class="empty-icon">🅿️</div><p>Нужна машина в гараже</p></div>';
     return;
@@ -302,21 +333,29 @@ function renderTaxi() {
   if (!G.taxi) genTaxi();
   var o = G.taxi;
   var left = taxiLeft();
-  
+  var tp = ensureTaxiProg();
+  var xpNeed = taxiXpNeed(tp.lvl);
+
   tc.innerHTML = '<div class="taxi-route">' +
     '<div class="taxi-pt">📍 ' + o.f + '</div>' +
     '<div class="taxi-arrow">➡️</div>' +
     '<div class="taxi-pt">📍 ' + o.t + '</div>' +
   '</div>' +
+  '<div class="taxi-meta-row">' +
+    '<div class="taxi-rank">LVL ' + tp.lvl + ' • ' + o.tier + '</div>' +
+    '<div class="taxi-difficulty">Сложность: ' + o.diff + '</div>' +
+  '</div>' +
   '<div class="taxi-info">' +
     '<div class="taxi-distance">🛣️ ~' + o.dist + ' км</div>' +
+    '<div class="taxi-distance">⭐ +' + o.xp + ' XP</div>' +
   '</div>' +
   '<div class="taxi-reward">💵 ' + fmt(o.r) + ' ₽</div>' +
+  '<div class="taxi-xpbar"><div class="taxi-xpfill" style="width:' + Math.min(100, Math.round((tp.xp / xpNeed) * 100)) + '%"></div></div>' +
+  '<div class="taxi-limit">📊 Выполнено: ' + (TAXI_DAILY_LIMIT - left) + '/' + TAXI_DAILY_LIMIT + ' • XP: ' + tp.xp + '/' + xpNeed + '</div>' +
   '<div class="taxi-btns">' +
     '<button class="taxi-btn acc" onclick="accTaxi()"' + (left <= 0 ? ' disabled' : '') + '>✅ Принять</button>' +
     '<button class="taxi-btn skip" onclick="skipTaxi()">⏭️ Другой</button>' +
-  '</div>' +
-  '<div class="taxi-limit">📊 Выполнено: ' + (TAXI_DAILY_LIMIT - left) + '/' + TAXI_DAILY_LIMIT + '</div>';
+  '</div>';
 }
 
 function renderSk() {
@@ -386,6 +425,7 @@ function buyG(id) {
   }
   
   vibrate(30);
+  persistGameState('sim-buy');
   renderSim();
 }
 
@@ -418,7 +458,8 @@ function sellG(id) {
   var msg = (profit >= 0 ? '+' : '') + fmt(profit) + ' ₽ (ком. ' + fmt(fee) + ' ₽)';
   toast(profit >= 0 ? '💰 ' + msg : '📉 ' + msg, profit >= 0 ? 'success' : 'error');
   vibrate(profit >= 0 ? 40 : 80);
-  
+  if (typeof window !== 'undefined' && typeof window.trackSuccessfulSale === 'function') window.trackSuccessfulSale();
+  persistGameState('sim-sell');
   renderSim();
 }
 
@@ -486,15 +527,23 @@ function filterSrvCat(cat) {
 }
 
 function genTaxi() {
+  var tp = ensureTaxiProg();
+  var tier = taxiTierMeta(tp.lvl);
   var f = pick(locs);
   var t = pick(locs);
   while (t === f) t = pick(locs);
-  var dist = rnd(5, 35);
-  var base = (rnd(400, 1200) + dist * rnd(20, 40)) * (1 + G.sk.вождение.l * 0.12);
+  var dist = rnd(tier.minDist, tier.maxDist);
+  var skillMult = 1 + G.sk.вождение.l * 0.12;
+  var lvlMult = 1 + (tp.lvl - 1) * 0.09;
+  var base = (rnd(500, 1400) + dist * rnd(28, 54)) * skillMult * lvlMult * tier.mult;
+  var xp = Math.max(1, Math.round(1 + dist / 10 + tier.mult));
   G.taxi = { 
     f: f, 
     t: t, 
     dist: dist,
+    diff: tier.hard,
+    tier: tier.name,
+    xp: xp,
     r: Math.round(base * (G.mods ? (G.mods.taxiMult || 1) : 1)) 
   };
 }
@@ -503,9 +552,11 @@ function accTaxi() {
   if (!G.taxi || !G.gar.length || taxiLeft() <= 0) return toast('Лимит поездок!', 'error');
   G.m += G.taxi.r;
   taxiUseOne();
-  addXP('вождение', 30);
-  toast('🚕 +' + fmt(G.taxi.r) + ' ₽', 'success');
+  addXP('вождение', 30 + Math.round((G.taxi.xp || 1) * 2));
+  addTaxiXp(G.taxi.xp || 1);
+  toast('🚕 +' + fmt(G.taxi.r) + ' ₽ • заказ ' + (G.taxi.tier || 'STREET'), 'success');
   vibrate(25);
+  persistGameState('taxi-complete');
   genTaxi();
   renderSim();
 }
@@ -513,6 +564,17 @@ function accTaxi() {
 function skipTaxi() { 
   genTaxi(); 
   renderTaxi(); 
+}
+
+export function nextDayWithAd() {
+  // Показываем рекламу только при переходе на 2й день (когда G.day === 1)
+  if (G.day === 1 && typeof window !== 'undefined' && typeof window.showFullAd === 'function') {
+    window.showFullAd().then(function() {
+      refreshMarket();
+    });
+  } else {
+    refreshMarket();
+  }
 }
 
 export function refreshMarket() {
@@ -574,6 +636,7 @@ export function refreshMarket() {
   }
   
   G.taxi = null;
+  persistGameState('next-day');
   renderSim();
 }
 
@@ -643,6 +706,7 @@ function renderCarModal() {
             '<div class="dmg-desc">' + d.desc + '</div>' +
             '<div class="dmg-bar"><div class="dmg-fill" style="width:' + d.severity + '%"></div></div>' +
             '<div class="dmg-cost">Ремонт: ~' + fmt(Math.round(d.repairCost * (d.severity / 50))) + ' ₽</div>' +
+            '<button class="ad-terminal-btn reward" onclick="rewardRepairPart(' + "'" + d.key + "'" + ')">▶ РЕКЛАМА: ПОЧИНИТЬ</button>' +
           '</div>';
         }).join('') +
       '</div>' +
@@ -673,7 +737,43 @@ function renderCarModal() {
         '<div class="tag">📈 VM: x' + (c.vm || 1).toFixed(2) + '</div>' +
       '</div>' +
     '</div>' +
+    '<div class="modal-sec ad-terminal-box">' +
+      '<div class="modal-sec-title">📺 ЯНДЕКС БОНУСЫ</div>' +
+      '<div class="ad-terminal-actions">' +
+        '<button class="ad-terminal-btn" onclick="rewardDiagnoseCurrentCar()">▶ ДИАГНОСТИКА ЗА ВИДЕО</button>' +
+        '<div class="ad-terminal-note">Откроет все скрытые дефекты и пометит машину как диагностированную.</div>' +
+      '</div>' +
+    '</div>' +
     dmgHtml;
+}
+
+export function rewardDiagnoseCurrentCar() {
+  if (!modalCarId || typeof window === 'undefined') return;
+  var c = G.gar.find(function(x) { return String(x.id) === String(modalCarId); });
+  if (!c) return toast('Машина не найдена', 'error');
+  window.showRewardedAd && window.showRewardedAd('diagnosis', function() {
+    c.pr = true;
+    c.hp = false;
+    toast('🧠 Диагностика завершена. Скрытые дефекты раскрыты.', 'success');
+    persistGameState('reward-diagnosis');
+    openCarModal(c.id);
+  });
+}
+
+export function rewardRepairPart(partKey) {
+  if (!modalCarId || typeof window === 'undefined') return;
+  var c = G.gar.find(function(x) { return String(x.id) === String(modalCarId); });
+  if (!c || !Array.isArray(c.damages)) return toast('Деталь не найдена', 'error');
+  var part = c.damages.find(function(d) { return d.key === partKey; });
+  if (!part) return toast('Эта деталь уже исправна', 'success');
+  window.showRewardedAd && window.showRewardedAd('repair', function() {
+    c.damages = c.damages.filter(function(d) { return d.key !== partKey; });
+    c.cond = Math.min(100, c.cond + 8);
+    toast('🛠️ ' + part.part + ' восстановлена до 100% HP', 'success');
+    persistGameState('reward-repair');
+    openCarModal(c.id);
+    renderSim();
+  });
 }
 
 // Визуализация машины с повреждениями
@@ -785,4 +885,7 @@ if (typeof window !== 'undefined') {
   window.closeCarModal = closeCarModal;
   window.closeModalBtn = closeModalBtn;
   window.filterSrvCat = filterSrvCat;
+  window.rewardDiagnoseCurrentCar = rewardDiagnoseCurrentCar;
+  window.rewardRepairPart = rewardRepairPart;
+  window.nextDayWithAd = nextDayWithAd;
 }

@@ -86,7 +86,7 @@ window.softResetSession = function() {
 window.buy = window.haggle = window.skip = window.inspect = function() {
   console.warn('[FALLBACK] Game function called before module loaded');
 };
-window.refreshMarket = window.sellFromModal = window.setSrvFromModal = function() {
+window.refreshMarket = window.nextDayWithAd = window.sellFromModal = window.setSrvFromModal = function() {
   console.warn('[FALLBACK] Sim function called before module loaded');
 };
 window.checkForUpdate = window.applyUpdate = window.resetAppCachesAndReload = window.toggleEmergencyMode = function() {
@@ -97,10 +97,10 @@ window.checkForUpdate = window.applyUpdate = window.resetAppCachesAndReload = wi
 <!-- =============== FORCE UPDATE SYSTEM =============== -->
 <script>
 (function(){
-  var BUILD = 406;
+  var BUILD = 413;
   var URL = './version.json';
   var EMERGENCY_KEY = 'p2077_emergency_off';
-  var EMBEDDED = { version: 406, build: 406, versionName: '4.0.5', min_supported: 300, forceUpdateBelow: 300, apk_url: '', web_url: './', changelog: ['Исправлены onclick кнопки','Fallback-стабы в head','Стабильная работа в WebView'], notes: 'Локальный режим.' };
+  var EMBEDDED = { version: 411, build: 411, versionName: '4.0.5', min_supported: 300, forceUpdateBelow: 300, apk_url: '', web_url: './', changelog: ['Исправлены onclick кнопки','Fallback-стабы в head','Стабильная работа в WebView'], notes: 'Локальный режим.' };
 
   window.isInApk = function() {
     return /wv/.test(navigator.userAgent) || window.__APK_PACKAGE_OK !== undefined;
@@ -203,6 +203,23 @@ window.checkForUpdate = window.applyUpdate = window.resetAppCachesAndReload = wi
   else setTimeout(check, 100);
 })();
 </script>
+
+<!-- Yandex Games SDK -->
+<script src="/sdk.js"></script>
+<script>
+window.ysdk = null;
+window.yandexSDKInitPromise = (async function(){
+  try {
+    if (typeof YaGames === "undefined" || !YaGames.init) return null;
+    window.ysdk = await YaGames.init();
+    console.log("[YG] SDK ready");
+    return window.ysdk;
+  } catch (e) {
+    console.warn("[YG] SDK init failed", e);
+    return null;
+  }
+})();
+</script>
 </head>
 <body>
 <div class="bg"></div>
@@ -218,7 +235,7 @@ window.checkForUpdate = window.applyUpdate = window.resetAppCachesAndReload = wi
 <div class="screen menu active" id="menu-screen">
   <div class="menu-logo">🚗</div>
   <h1 class="menu-title">ПЕРЕКУП<br/>2077</h1>
-  <p class="menu-sub">v4.0.6</p>
+  <p class="menu-sub">v4.1.3</p>
   <p class="menu-subline">BLACK MARKET AUTO EXCHANGE</p>
   <div class="build-chip">NEO DEALER TERMINAL</div>
   <div class="global-stats">
@@ -233,7 +250,7 @@ window.checkForUpdate = window.applyUpdate = window.resetAppCachesAndReload = wi
     <button class="mbtn" onclick="repairGame()">🔧 ПОЧИНИТЬ ИГРУ</button>
     <button class="mbtn mbtn-sec" onclick="showAbout()">ℹ️ ОБ ИГРЕ</button>
   </div>
-  <p class="menu-ver">© CST1ME • <span id="build-info">v4.0.6</span></p>
+  <p class="menu-ver">© CST1ME • <span id="build-info">v4.1.3</span></p>
 </div>
 
 <!-- REPAIR MODAL -->
@@ -339,7 +356,7 @@ window.checkForUpdate = window.applyUpdate = window.resetAppCachesAndReload = wi
       <button class="tab" data-p="skills">📊Скиллы</button>
     </div>
     <div class="panel active" id="market">
-      <div class="sec-hdr"><span class="sec-title">🏪 Рынок</span><button class="ref-btn" onclick="refreshMarket()">🔄 День</button></div>
+      <div class="sec-hdr"><span class="sec-title">🏪 Рынок</span><button class="ref-btn" onclick="nextDayWithAd()">📺 След. день</button></div>
       <div class="market-intel" id="market-intel">
         <div class="mi-chip" id="market-tier">🏆 Новичок</div>
         <div class="mi-chip" id="market-risk">⚠️ Средний</div>
@@ -391,7 +408,7 @@ window.checkForUpdate = window.applyUpdate = window.resetAppCachesAndReload = wi
 <div class="screen" id="about-screen">
   <div class="hdr"><div class="hdr-left"><button class="back" onclick="toMenu()">←</button><span class="hdr-title">ℹ️ ОБ ИГРЕ</span></div></div>
   <div class="about-body">
-    <div class="about-hdr"><div class="about-logo">🚗</div><div class="about-title">ПЕРЕКУП 2077</div><div class="about-ver">v4.0.6</div></div>
+    <div class="about-hdr"><div class="about-logo">🚗</div><div class="about-title">ПЕРЕКУП 2077</div><div class="about-ver">v4.1.3</div></div>
     <div class="about-sec"><div class="about-sec-title">⚡ 60 Секунд</div><div class="about-text">🔥 КОМБО x5<br/>⚡ СКОРОСТЬ +50%<br/>💎 ЛЕГЕНДАРКИ</div></div>
     <div class="about-sec"><div class="about-sec-title">🏠 Симулятор</div><div class="about-text">🛠️ УСЛУГИ<br/>🚕 ТАКСИ<br/>📅 СОБЫТИЯ</div></div>
     <div class="about-sec license"><div class="dev-name">CST1ME</div><div class="license-text">© 2024-2077</div></div>
@@ -402,7 +419,7 @@ window.checkForUpdate = window.applyUpdate = window.resetAppCachesAndReload = wi
 <div class="screen" id="patch-screen">
   <div class="hdr"><div class="hdr-left"><button class="back" onclick="toMenu()">←</button><span class="hdr-title">🔄 ОБНОВЛЕНИЯ</span></div><div class="stats"><div class="stat combo">🔧<span id="pn-build">404</span></div><div class="stat money">🚀<span id="pn-ver">4.0.4</span></div></div></div>
   <div class="about-body">
-    <div class="about-sec changelog"><div class="about-sec-title" id="pn-title">v4.0.6</div><div class="about-text" id="pn-notes">Загрузка...</div></div>
+    <div class="about-sec changelog"><div class="about-sec-title" id="pn-title">v4.1.3</div><div class="about-text" id="pn-notes">Загрузка...</div></div>
     <div class="about-sec"><div class="about-sec-title">⬇️ Статус</div><div id="pn-status" style="margin-bottom:10px;font-size:13px;color:#aaa;">Готов к проверке</div><div style="display:flex;gap:8px;"><button class="mbtn mbtn-sec" onclick="checkForUpdate(true)" style="flex:1;">🔍 Проверить</button><button class="mbtn mbtn-main" id="pn-update-btn" onclick="applyUpdate()" style="flex:1;display:none;">⬇️ Обновить</button></div></div>
   </div>
 </div>
